@@ -68,7 +68,7 @@ import Testing
 
             #expect(result.items.count == 2)
             #expect(result.items[0].name == "huggingface")
-            #expect(result.items[0].fullname == "Hugging Face")
+            #expect(result.items[0].fullName == "Hugging Face")
             #expect(result.items[0].isEnterprise == true)
             #expect(result.items[1].name == "testorg")
         }
@@ -144,9 +144,9 @@ import Testing
             let org = try await client.getOrganization("huggingface")
 
             #expect(org.name == "huggingface")
-            #expect(org.fullname == "Hugging Face")
+            #expect(org.fullName == "Hugging Face")
             #expect(org.isEnterprise == true)
-            #expect(org.numMembers == 100)
+            #expect(org.numberOfMembers == 100)
             #expect(org.website == "https://huggingface.co")
         }
 

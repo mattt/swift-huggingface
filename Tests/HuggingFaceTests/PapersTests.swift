@@ -34,6 +34,6 @@ struct PapersTests {
         #expect(paper.title == "An Image is Worth 16x16 Words")
         #expect(paper.authors?.count == 2)
         #expect(paper.summary == "A paper about vision transformers")
-        #expect(paper.arxivId == "2103.00020")
+        #expect(paper.arXivID == "2103.00020")
     }
 }

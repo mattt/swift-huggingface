@@ -29,9 +29,9 @@ struct OrganizationsTests {
         let org = try decoder.decode(Organization.self, from: data)
 
         #expect(org.name == "huggingface")
-        #expect(org.fullname == "Hugging Face")
+        #expect(org.fullName == "Hugging Face")
         #expect(org.isEnterprise == true)
-        #expect(org.numMembers == 100)
+        #expect(org.numberOfMembers == 100)
         #expect(org.website == "https://huggingface.co")
     }
 
@@ -50,7 +50,7 @@ struct OrganizationsTests {
         let member = try JSONDecoder().decode(Organization.Member.self, from: data)
 
         #expect(member.name == "johndoe")
-        #expect(member.fullname == "John Doe")
+        #expect(member.fullName == "John Doe")
         #expect(member.role == "admin")
     }
 }

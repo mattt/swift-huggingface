@@ -26,7 +26,7 @@ import Testing
             let mockResponse = """
                 {
                     "url": "https://huggingface.co/user/my-new-model",
-                    "repoId": "12345"
+                    "repoID": "12345"
                 }
                 """
 

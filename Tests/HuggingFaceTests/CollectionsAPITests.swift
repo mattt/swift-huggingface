@@ -159,7 +159,7 @@ import Testing
             #expect(collection.title == "My Collection")
             #expect(collection.items?.count == 1)
             #expect(collection.items?[0].itemType == "model")
-            #expect(collection.items?[0].itemId == "facebook/bart-large")
+            #expect(collection.items?[0].itemID == "facebook/bart-large")
         }
 
         @Test("Handle 404 error for collection", .mockURLSession)

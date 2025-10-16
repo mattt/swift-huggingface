@@ -32,7 +32,7 @@ struct DiscussionTests {
         let json = """
             {
                 "name": "username",
-                "avatarUrl": "https://avatars.example.com/username",
+                "avatarURL": "https://avatars.example.com/username",
                 "isHfTeam": true,
                 "isMod": false
             }
@@ -42,7 +42,7 @@ struct DiscussionTests {
         let author = try JSONDecoder().decode(Discussion.Author.self, from: data)
 
         #expect(author.name == "username")
-        #expect(author.avatarUrl == "https://avatars.example.com/username")
+        #expect(author.avatarURL == "https://avatars.example.com/username")
         #expect(author.isHfTeam == true)
         #expect(author.isMod == false)
     }
@@ -54,14 +54,14 @@ struct DiscussionTests {
                 "id": "comment123",
                 "author": {
                     "name": "commenter",
-                    "avatarUrl": "https://avatars.example.com/commenter",
+                    "avatarURL": "https://avatars.example.com/commenter",
                     "isHfTeam": false,
                     "isMod": false
                 },
                 "content": "This is a comment",
                 "createdAt": "2023-05-10T12:00:00.000Z",
-                "hidden": false,
-                "numEdits": 2,
+                "isHidden": false,
+                "numberOfEdits": 2,
                 "replyTo": null
             }
             """
@@ -75,8 +75,8 @@ struct DiscussionTests {
         #expect(comment.id == "comment123")
         #expect(comment.author.name == "commenter")
         #expect(comment.content == "This is a comment")
-        #expect(comment.hidden == false)
-        #expect(comment.numEdits == 2)
+        #expect(comment.isHidden == false)
+        #expect(comment.numberOfEdits == 2)
         #expect(comment.replyTo == nil)
     }
 
@@ -84,12 +84,12 @@ struct DiscussionTests {
     func testDiscussionPreviewDecoding() throws {
         let json = """
             {
-                "num": 42,
+                "number": 42,
                 "title": "Feature Request",
                 "status": "open",
                 "author": {
                     "name": "requester",
-                    "avatarUrl": null,
+                    "avatarURL": null,
                     "isHfTeam": null,
                     "isMod": null
                 },
@@ -97,8 +97,8 @@ struct DiscussionTests {
                 "pinned": true,
                 "isPullRequest": false,
                 "createdAt": "2023-04-20T09:15:30.000Z",
-                "numComments": 5,
-                "numReactionUsers": 3,
+                "numberOfComments": 5,
+                "numberOfReactionUsers": 3,
                 "topReactions": [],
                 "repoOwner": {
                     "name": "org",
@@ -115,15 +115,15 @@ struct DiscussionTests {
         let data = json.data(using: .utf8)!
         let preview = try decoder.decode(Discussion.Preview.self, from: data)
 
-        #expect(preview.num == 42)
+        #expect(preview.number == 42)
         #expect(preview.title == "Feature Request")
         #expect(preview.status == .open)
         #expect(preview.author.name == "requester")
         #expect(preview.pinned == true)
         #expect(preview.isPullRequest == false)
         #expect(preview.repo == "org/repo")
-        #expect(preview.numComments == 5)
-        #expect(preview.numReactionUsers == 3)
+        #expect(preview.numberOfComments == 5)
+        #expect(preview.numberOfReactionUsers == 3)
         #expect(preview.repoOwner.name == "org")
     }
 
@@ -136,7 +136,7 @@ struct DiscussionTests {
                 "status": "closed",
                 "author": {
                     "name": "reporter",
-                    "avatarUrl": "https://avatars.example.com/reporter",
+                    "avatarURL": "https://avatars.example.com/reporter",
                     "isHfTeam": false,
                     "isMod": true
                 },
@@ -149,14 +149,14 @@ struct DiscussionTests {
                         "id": "comment1",
                         "author": {
                             "name": "responder",
-                            "avatarUrl": null,
+                            "avatarURL": null,
                             "isHfTeam": null,
                             "isMod": null
                         },
                         "content": "Thanks for reporting!",
                         "createdAt": "2023-03-15T09:00:00.000Z",
-                        "hidden": false,
-                        "numEdits": 0,
+                        "isHidden": false,
+                        "numberOfEdits": 0,
                         "replyTo": null
                     }
                 ],
@@ -172,7 +172,7 @@ struct DiscussionTests {
         let data = json.data(using: .utf8)!
         let discussion = try decoder.decode(Discussion.self, from: data)
 
-        #expect(discussion.num == 42)
+        #expect(discussion.number == 42)
         #expect(discussion.title == "Bug Report")
         #expect(discussion.status == .closed)
         #expect(discussion.author.name == "reporter")
@@ -181,8 +181,8 @@ struct DiscussionTests {
         #expect(discussion.isPullRequest == false)
         #expect(discussion.comments?.count == 1)
         #expect(discussion.comments?[0].content == "Thanks for reporting!")
-        #expect(discussion.numComments == 1)
+        #expect(discussion.numberOfComments == 1)
         #expect(discussion.repoKind == .dataset)
-        #expect(discussion.repoId == "org/dataset")
+        #expect(discussion.repoID == "org/dataset")
     }
 }

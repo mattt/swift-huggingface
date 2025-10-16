@@ -180,6 +180,6 @@ struct GitTests {
         #expect(author.email == nil)
         #expect(author.time == nil)
         #expect(author.user == nil)
-        #expect(author.avatarUrl == nil)
+        #expect(author.avatarURL == nil)
     }
 }

@@ -27,7 +27,7 @@ import Testing
                 {
                     "discussions": [
                         {
-                            "num": 1,
+                            "number": 1,
                             "title": "Bug in inference",
                             "status": "open",
                             "author": {
@@ -36,8 +36,8 @@ import Testing
                             "repo": "facebook/bart-large",
                             "createdAt": "2023-01-01T00:00:00.000Z",
                             "isPullRequest": false,
-                            "numComments": 3,
-                            "numReactionUsers": 2,
+                            "numberOfComments": 3,
+                            "numberOfReactionUsers": 2,
                             "pinned": false,
                             "topReactions": [],
                             "repoOwner": {
@@ -48,7 +48,7 @@ import Testing
                             }
                         },
                         {
-                            "num": 2,
+                            "number": 2,
                             "title": "Feature request",
                             "status": "open",
                             "author": {
@@ -57,8 +57,8 @@ import Testing
                             "repo": "facebook/bart-large",
                             "createdAt": "2023-01-02T00:00:00.000Z",
                             "isPullRequest": false,
-                            "numComments": 1,
-                            "numReactionUsers": 0,
+                            "numberOfComments": 1,
+                            "numberOfReactionUsers": 0,
                             "pinned": false,
                             "topReactions": [],
                             "repoOwner": {
@@ -96,9 +96,9 @@ import Testing
             )
 
             #expect(discussions.discussions.count == 2)
-            #expect(discussions.discussions[0].num == 1)
+            #expect(discussions.discussions[0].number == 1)
             #expect(discussions.discussions[0].title == "Bug in inference")
-            #expect(discussions.discussions[1].num == 2)
+            #expect(discussions.discussions[1].number == 2)
         }
 
         @Test("List discussions with status filter", .mockURLSession)
@@ -107,7 +107,7 @@ import Testing
                 {
                     "discussions": [
                         {
-                            "num": 3,
+                            "number": 3,
                             "title": "Closed issue",
                             "status": "closed",
                             "author": {
@@ -116,8 +116,8 @@ import Testing
                             "repo": "facebook/bart-large",
                             "createdAt": "2023-01-03T00:00:00.000Z",
                             "isPullRequest": false,
-                            "numComments": 0,
-                            "numReactionUsers": 0,
+                            "numberOfComments": 0,
+                            "numberOfReactionUsers": 0,
                             "pinned": false,
                             "topReactions": [],
                             "repoOwner": {
@@ -167,7 +167,7 @@ import Testing
                     "status": "open",
                     "author": {
                         "name": "user1",
-                        "avatarUrl": "https://avatars.example.com/user1"
+                        "avatarURL": "https://avatars.example.com/user1"
                     },
                     "createdAt": "2023-01-01T00:00:00.000Z",
                     "isPullRequest": false,
@@ -203,10 +203,10 @@ import Testing
             let discussion = try await client.getDiscussion(
                 kind: .model,
                 repoID,
-                num: 1
+                number: 1
             )
 
-            #expect(discussion.num == 1)
+            #expect(discussion.number == 1)
             #expect(discussion.title == "Bug in inference")
             #expect(discussion.comments?.count == 1)
         }
@@ -241,7 +241,7 @@ import Testing
             let success = try await client.addCommentToDiscussion(
                 kind: .model,
                 repoID,
-                num: 1,
+                number: 1,
                 comment: "Thanks for reporting!"
             )
 
@@ -269,7 +269,7 @@ import Testing
             let success = try await client.mergeDiscussion(
                 kind: .model,
                 repoID,
-                num: 5
+                number: 5
             )
 
             #expect(success == true)
@@ -296,7 +296,7 @@ import Testing
             let success = try await client.pinDiscussion(
                 kind: .model,
                 repoID,
-                num: 1
+                number: 1
             )
 
             #expect(success == true)
@@ -330,7 +330,7 @@ import Testing
             let success = try await client.updateDiscussionStatus(
                 kind: .model,
                 repoID,
-                num: 1,
+                number: 1,
                 status: .closed
             )
 
@@ -365,7 +365,7 @@ import Testing
             let success = try await client.updateDiscussionTitle(
                 kind: .model,
                 repoID,
-                num: 1,
+                number: 1,
                 title: "Updated title"
             )
 
@@ -400,7 +400,7 @@ import Testing
             }
 
             let client = createMockClient()
-            let success = try await client.markDiscussionsAsRead(discussionNums: [1, 2, 3])
+            let success = try await client.markDiscussionsAsRead([1, 2, 3])
 
             #expect(success == true)
         }
@@ -411,7 +411,7 @@ import Testing
                 {
                     "discussions": [
                         {
-                            "num": 1,
+                            "number": 1,
                             "title": "Data quality issue",
                             "status": "open",
                             "author": {
@@ -420,8 +420,8 @@ import Testing
                             "repo": "_/squad",
                             "createdAt": "2023-01-01T00:00:00.000Z",
                             "isPullRequest": false,
-                            "numComments": 2,
-                            "numReactionUsers": 1,
+                            "numberOfComments": 2,
+                            "numberOfReactionUsers": 1,
                             "pinned": false,
                             "topReactions": [],
                             "repoOwner": {

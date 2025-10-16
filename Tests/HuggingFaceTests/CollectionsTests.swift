@@ -49,7 +49,7 @@ struct CollectionsTests {
         let item = try JSONDecoder().decode(Collection.Item.self, from: data)
 
         #expect(item.itemType == "model")
-        #expect(item.itemId == "facebook/bart-large")
+        #expect(item.itemID == "facebook/bart-large")
         #expect(item.position == 0)
         #expect(item.note == "A great model")
     }

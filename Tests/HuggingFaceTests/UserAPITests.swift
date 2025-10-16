@@ -59,11 +59,11 @@ import Testing
             let user = try await client.whoami()
 
             #expect(user.name == "johndoe")
-            #expect(user.fullname == "John Doe")
+            #expect(user.fullName == "John Doe")
             #expect(user.email == "john@example.com")
             #expect(user.isPro == true)
-            #expect(user.orgs?.count == 1)
-            #expect(user.orgs?[0].name == "myorg")
+            #expect(user.organizations?.count == 1)
+            #expect(user.organizations?[0].name == "myorg")
         }
 
         @Test("Whoami requires authentication", .mockURLSession)
