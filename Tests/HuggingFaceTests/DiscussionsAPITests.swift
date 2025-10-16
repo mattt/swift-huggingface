@@ -90,15 +90,15 @@ import Testing
 
             let client = createMockClient()
             let repoID: Repo.ID = "facebook/bart-large"
-            let discussions = try await client.listDiscussions(
+            let (discussions, _, _, _) = try await client.listDiscussions(
                 kind: .model,
                 repoID
             )
 
-            #expect(discussions.discussions.count == 2)
-            #expect(discussions.discussions[0].number == 1)
-            #expect(discussions.discussions[0].title == "Bug in inference")
-            #expect(discussions.discussions[1].number == 2)
+            #expect(discussions.count == 2)
+            #expect(discussions[0].number == 1)
+            #expect(discussions[0].title == "Bug in inference")
+            #expect(discussions[1].number == 2)
         }
 
         @Test("List discussions with status filter", .mockURLSession)
@@ -148,14 +148,14 @@ import Testing
 
             let client = createMockClient()
             let repoID: Repo.ID = "facebook/bart-large"
-            let discussions = try await client.listDiscussions(
+            let (discussions, _, _, _) = try await client.listDiscussions(
                 kind: .model,
                 repoID,
                 status: "closed"
             )
 
-            #expect(discussions.discussions.count == 1)
-            #expect(discussions.discussions[0].status == .closed)
+            #expect(discussions.count == 1)
+            #expect(discussions[0].status == .closed)
         }
 
         @Test("Get specific discussion", .mockURLSession)
@@ -453,13 +453,13 @@ import Testing
 
             let client = createMockClient()
             let repoID: Repo.ID = "_/squad"
-            let discussions = try await client.listDiscussions(
+            let (discussions, _, _, _) = try await client.listDiscussions(
                 kind: .dataset,
                 repoID
             )
 
-            #expect(discussions.discussions.count == 1)
-            #expect(discussions.discussions[0].title == "Data quality issue")
+            #expect(discussions.count == 1)
+            #expect(discussions[0].title == "Data quality issue")
         }
     }
 
