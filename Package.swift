@@ -14,21 +14,31 @@ let package = Package(
         .visionOS(.v1),
     ],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "HuggingFace",
-            targets: ["Hub"]
+            targets: ["HuggingFace"]
         )
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "Hub"
+            name: "Hub",
+            path: "Sources/Hub"
+        ),
+        .target(
+            name: "InferenceProviders",
+            path: "Sources/InferenceProviders"
+        ),
+        .target(
+            name: "HuggingFace",
+            dependencies: [
+                .target(name: "Hub"),
+                .target(name: "InferenceProviders"),
+            ],
+            path: "Sources/HuggingFace"
         ),
         .testTarget(
-            name: "HubTests",
-            dependencies: ["Hub"]
+            name: "HuggingFaceTests",
+            dependencies: ["HuggingFace", "Hub"]
         ),
     ]
 )
