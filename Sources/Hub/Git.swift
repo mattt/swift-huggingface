@@ -20,7 +20,7 @@ public enum Git {
         public let lastCommit: LastCommitInfo?
 
         /// The type of a tree entry.
-        public enum EntryType: String, CustomStringConvertible, Hashable, Codable, Sendable {
+        public enum EntryType: String, Hashable, CaseIterable, CustomStringConvertible, Codable, Sendable {
             /// A file entry.
             case file
 

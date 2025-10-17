@@ -9,7 +9,7 @@ public struct AccessRequest: Codable, Sendable {
     public let grantedBy: User?
 
     /// Status of an access request.
-    public enum Status: String, Codable, Sendable {
+    public enum Status: String, Hashable, CaseIterable, Codable, Sendable {
         case accepted
         case rejected
         case pending

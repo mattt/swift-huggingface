@@ -3,8 +3,8 @@ import Testing
 
 @testable import Hub
 
-@Suite("Client Tests")
-struct ClientTests {
+@Suite("Hub Client Tests")
+struct HubClientTests {
     @Test("Client can be initialized with default configuration")
     func testDefaultClientInitialization() {
         let client = Client.default

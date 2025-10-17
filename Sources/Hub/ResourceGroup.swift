@@ -22,16 +22,24 @@ public struct ResourceGroup: Codable, Sendable {
     }
 }
 
-public extension ResourceGroup {
-    enum Role: String, Codable, Sendable {
+extension ResourceGroup {
+    /// Role in a resource group.
+    public enum Role: String, Hashable, CaseIterable, Codable, Sendable {
+        /// Admin role.
         case admin
+        /// Write role.
         case write
+        /// Contributor role.
         case contributor
+        /// Read role.
         case read
     }
 
-    struct AutoJoin: Codable, Sendable {
+    /// Auto-join configuration for a resource group.
+    public struct AutoJoin: Codable, Sendable {
+        /// Whether auto-join is enabled.
         public let enabled: Bool
+        /// The role to assign to the user when they join the resource group.
         public let role: Role?
     }
 }

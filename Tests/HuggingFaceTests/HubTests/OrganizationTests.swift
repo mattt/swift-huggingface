@@ -4,10 +4,8 @@ import Testing
 @testable import Hub
 
 #if swift(>=6.1)
-
-    /// Tests for the Organizations API endpoints
-    @Suite("Organizations API Tests", .serialized)
-    struct OrganizationsAPITests {
+    @Suite("Organization Tests", .serialized)
+    struct OrganizationTests {
         /// Helper to create a URL session with mock protocol handlers
         func createMockClient(bearerToken: String? = nil) -> Client {
             let configuration = URLSessionConfiguration.ephemeral

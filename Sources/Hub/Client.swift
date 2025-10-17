@@ -1,4 +1,5 @@
 import Foundation
+import EventSource
 
 #if canImport(FoundationNetworking)
     import FoundationNetworking
@@ -43,6 +44,13 @@ public final class Client: Sendable {
 
     /// The underlying client session.
     private let session: URLSession
+
+    /// A shared JSON decoder with consistent configuration.
+    private let jsonDecoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601WithFractionalSeconds
+        return decoder
+    }()
 
     /// Creates a client with auto-detected host and bearer token.
     ///
@@ -202,42 +210,22 @@ public final class Client: Sendable {
     ) async throws -> T {
         let request = try createRequest(method, path, params: params, headers: headers)
         let (data, response) = try await session.data(for: request)
-        let httpResponse = try validateResponse(response)
+        let httpResponse = try validateResponse(response, data: data)
 
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601WithFractionalSeconds
-
-        switch httpResponse.statusCode {
-        case 200 ..< 300:
-            if T.self == Bool.self {
-                // If T is Bool, we return true for successful response
-                return true as! T
-            } else if data.isEmpty {
-                throw ClientError.responseError(response: httpResponse, detail: "Empty response body")
-            } else {
-                do {
-                    return try decoder.decode(T.self, from: data)
-                } catch {
-                    throw ClientError.decodingError(
-                        response: httpResponse,
-                        detail: "ClientError decoding response: \(error.localizedDescription)"
-                    )
-                }
+        if T.self == Bool.self {
+            // If T is Bool, we return true for successful response
+            return true as! T
+        } else if data.isEmpty {
+            throw ClientError.responseError(response: httpResponse, detail: "Empty response body")
+        } else {
+            do {
+                return try jsonDecoder.decode(T.self, from: data)
+            } catch {
+                throw ClientError.decodingError(
+                    response: httpResponse,
+                    detail: "ClientError decoding response: \(error.localizedDescription)"
+                )
             }
-        default:
-            if T.self == Bool.self {
-                return false as! T
-            }
-
-            if let errorDetail = try? JSONDecoder().decode(ClientErrorResponse.self, from: data) {
-                throw ClientError.responseError(response: httpResponse, detail: errorDetail.error)
-            }
-
-            if let string = String(data: data, encoding: .utf8) {
-                throw ClientError.responseError(response: httpResponse, detail: string)
-            }
-
-            throw ClientError.responseError(response: httpResponse, detail: "Invalid response")
         }
     }
 
@@ -249,25 +237,10 @@ public final class Client: Sendable {
     ) async throws -> PaginatedResponse<T> {
         let request = try createRequest(method, path, params: params, headers: headers)
         let (data, response) = try await session.data(for: request)
-        let httpResponse = try validateResponse(response)
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601WithFractionalSeconds
-
-        guard (200 ..< 300).contains(httpResponse.statusCode) else {
-            if let errorDetail = try? JSONDecoder().decode(ClientErrorResponse.self, from: data) {
-                throw ClientError.responseError(response: httpResponse, detail: errorDetail.error)
-            }
-
-            if let string = String(data: data, encoding: .utf8) {
-                throw ClientError.responseError(response: httpResponse, detail: string)
-            }
-
-            throw ClientError.responseError(response: httpResponse, detail: "Invalid response")
-        }
+        let httpResponse = try validateResponse(response, data: data)
 
         do {
-            let items = try decoder.decode([T].self, from: data)
+            let items = try jsonDecoder.decode([T].self, from: data)
             let nextURL = httpResponse.nextPageURL()
             return PaginatedResponse(items: items, nextURL: nextURL)
         } catch {
@@ -286,9 +259,6 @@ public final class Client: Sendable {
     ) -> AsyncThrowingStream<T, Swift.Error> {
         AsyncThrowingStream { @Sendable continuation in
             let task = Task {
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601WithFractionalSeconds
-
                 do {
                     let request = try createRequest(method, path, params: params, headers: headers)
                     let (bytes, response) = try await session.bytes(for: request)
@@ -299,41 +269,29 @@ public final class Client: Sendable {
                         for try await byte in bytes {
                             errorData.append(byte)
                         }
-
-                        if let errorDetail = try? decoder.decode(
-                            ClientErrorResponse.self,
-                            from: errorData
-                        ) {
-                            throw ClientError.responseError(
-                                response: httpResponse,
-                                detail: errorDetail.error
-                            )
-                        }
-
-                        if let string = String(data: errorData, encoding: .utf8) {
-                            throw ClientError.responseError(response: httpResponse, detail: string)
-                        }
-
-                        throw ClientError.responseError(
-                            response: httpResponse,
-                            detail: "Invalid response"
-                        )
+                        // validateResponse will throw the appropriate error
+                        _ = try validateResponse(response, data: errorData)
+                        return  // This line will never be reached, but satisfies the compiler
                     }
 
-                    var buffer = Data()
+                    for try await event in bytes.events {
+                        // Check for [DONE] signal
+                        if event.data.trimmingCharacters(in: .whitespacesAndNewlines) == "[DONE]" {
+                            continuation.finish()
+                            return
+                        }
 
-                    for try await byte in bytes {
-                        buffer.append(byte)
+                        guard let jsonData = event.data.data(using: .utf8) else {
+                            continue
+                        }
 
-                        // Look for newline to separate JSON objects
-                        while let newlineIndex = buffer.firstIndex(of: UInt8(ascii: "\n")) {
-                            let chunk = buffer[..<newlineIndex]
-                            buffer = buffer[buffer.index(after: newlineIndex)...]
-
-                            if !chunk.isEmpty {
-                                let decoded = try decoder.decode(T.self, from: chunk)
-                                continuation.yield(decoded)
-                            }
+                        do {
+                            let decoded = try jsonDecoder.decode(T.self, from: jsonData)
+                            continuation.yield(decoded)
+                        } catch {
+                            // Log decoding errors but don't fail the stream
+                            // This allows the stream to continue even if individual chunks fail
+                            print("Warning: Failed to decode streaming response chunk: \(error)")
                         }
                     }
 
@@ -357,19 +315,7 @@ public final class Client: Sendable {
     ) async throws -> Data {
         let request = try createRequest(method, path, params: params, headers: headers)
         let (data, response) = try await session.data(for: request)
-        let httpResponse = try validateResponse(response)
-
-        guard (200 ..< 300).contains(httpResponse.statusCode) else {
-            if let errorDetail = try? JSONDecoder().decode(ClientErrorResponse.self, from: data) {
-                throw ClientError.responseError(response: httpResponse, detail: errorDetail.error)
-            }
-
-            if let string = String(data: data, encoding: .utf8) {
-                throw ClientError.responseError(response: httpResponse, detail: string)
-            }
-
-            throw ClientError.responseError(response: httpResponse, detail: "Invalid response")
-        }
+        let _ = try validateResponse(response, data: data)
 
         return data
     }
@@ -438,10 +384,24 @@ public final class Client: Sendable {
         return request
     }
 
-    private func validateResponse(_ response: URLResponse) throws -> HTTPURLResponse {
+    private func validateResponse(_ response: URLResponse, data: Data? = nil) throws -> HTTPURLResponse {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw ClientError.unexpectedError("Invalid response from server: \(response)")
         }
+
+        // If we have data and it's an error status, parse and throw the error
+        if let data = data, !(200 ..< 300).contains(httpResponse.statusCode) {
+            if let errorDetail = try? jsonDecoder.decode(ClientErrorResponse.self, from: data) {
+                throw ClientError.responseError(response: httpResponse, detail: errorDetail.error)
+            }
+
+            if let string = String(data: data, encoding: .utf8) {
+                throw ClientError.responseError(response: httpResponse, detail: string)
+            }
+
+            throw ClientError.responseError(response: httpResponse, detail: "Invalid response")
+        }
+
         return httpResponse
     }
 }

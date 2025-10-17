@@ -83,9 +83,9 @@ public enum Billing {
 
         /// Entity associated with the billing period.
         public struct Entity: Sendable {
-            public enum Kind: String, Codable, Sendable {
+            public enum Kind: String, CaseIterable, Hashable, Codable, Sendable {
                 case user
-                case org
+                case organization = "org"
             }
 
             public let id: String

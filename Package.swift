@@ -19,6 +19,9 @@ let package = Package(
             targets: ["HuggingFace"]
         )
     ],
+    dependencies: [
+        .package(url: "https://github.com/mattt/EventSource.git", from: "1.0.0")
+    ],
     targets: [
         .target(
             name: "Hub",
@@ -26,6 +29,9 @@ let package = Package(
         ),
         .target(
             name: "InferenceProviders",
+            dependencies: [
+                .product(name: "EventSource", package: "EventSource")
+            ],
             path: "Sources/InferenceProviders"
         ),
         .target(

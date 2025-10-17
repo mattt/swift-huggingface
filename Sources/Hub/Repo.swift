@@ -24,7 +24,7 @@ public enum Repo {
     }
 
     /// The kind of a repository on the Hugging Face Hub.
-    public enum Kind: String, CustomStringConvertible, Hashable, Codable, Sendable, CaseIterable {
+    public enum Kind: String, Hashable, CaseIterable, CustomStringConvertible, Codable, Sendable {
         /// A model repository.
         case model
 
@@ -33,10 +33,6 @@ public enum Repo {
 
         /// A space repository.
         case space
-
-        public var description: String {
-            return rawValue
-        }
 
         /// The pluralized path component for API endpoints.
         public var pluralized: String {
@@ -48,6 +44,10 @@ public enum Repo {
             case .space:
                 return "spaces"
             }
+        }
+
+        public var description: String {
+            return rawValue
         }
     }
 
