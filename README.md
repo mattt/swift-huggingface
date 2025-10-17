@@ -101,7 +101,7 @@ let parquetFiles = try await client.listParquetFiles(
 let datasetTags = try await client.getDatasetTags()
 ```
 
-### Spaces
+#### Spaces
 
 ```swift
 // List spaces
@@ -124,7 +124,7 @@ _ = try await client.sleepSpace("user/my-space")
 _ = try await client.restartSpace("user/my-space", factory: false)
 ```
 
-### Repository Management
+#### Repository Management
 
 ```swift
 // Create a repository
@@ -156,7 +156,7 @@ _ = try await client.moveRepo(
 )
 ```
 
-### User Information
+#### User Information
 
 ```swift
 // Get current user information (requires authentication)
@@ -173,7 +173,7 @@ if let organizations = userInfo.organizations {
 }
 ```
 
-### Collections
+#### Collections
 
 ```swift
 // List collections
@@ -228,7 +228,7 @@ _ = try await client.deleteCollectionItem(
 )
 ```
 
-### Papers
+#### Papers
 
 ```swift
 // List papers
@@ -261,7 +261,7 @@ for item in dailyPapers {
 }
 ```
 
-### Organizations
+#### Organizations
 
 ```swift
 // List organizations
@@ -310,7 +310,7 @@ _ = try await client.createOrganizationResourceGroup(
 )
 ```
 
-### Discussions
+#### Discussions
 
 ```swift
 // List discussions for a repository
@@ -352,7 +352,7 @@ _ = try await client.updateDiscussionStatus(
 )
 ```
 
-### User Access Management
+#### User Access Management
 
 ```swift
 // Request access to a gated model
@@ -384,45 +384,7 @@ let report = try await client.getModelUserAccessReport("meta-llama/Llama-2-7b-hf
 print("Access report size: \(report.count) bytes")
 ```
 
-### Advanced Repository Features
-
-```swift
-// Set resource group for a model
-let group = try await client.setModelResourceGroup(
-    "facebook/bart-large-cnn",
-    resourceGroupId: "research-team"
-)
-print("Model added to resource group: \(group.name)")
-
-// Scan repository for issues
-_ = try await client.scanModel("facebook/bart-large-cnn")
-
-// Create a tag
-_ = try await client.createModelTag(
-    "facebook/bart-large-cnn",
-    revision: "main",
-    tag: "v1.0.0",
-    message: "Initial release"
-)
-
-// Super-squash commits
-let newCommitId = try await client.superSquashModel(
-    "facebook/bart-large-cnn",
-    revision: "main",
-    message: "Squash all commits into one"
-)
-print("New commit ID: \(newCommitId)")
-
-// Get tree size
-let (_, size) = try await client.modelTreeSize(
-    "facebook/bart-large-cnn",
-    revision: "main",
-    path: "src"
-)
-print("Tree size: \(size) bytes")
-```
-
-### Space Monitoring and Management
+#### Space Monitoring and Management
 
 ```swift
 // Stream space logs
@@ -457,9 +419,9 @@ _ = try await client.upsertSpaceVariable(
 )
 ```
 
-### Pagination
+#### Pagination
 
-The API automatically handles pagination using Link headers:
+The API automatically handles pagination using `Link` headers:
 
 ```swift
 let page1 = try await client.listModels(limit: 100)
@@ -471,7 +433,7 @@ if let nextURL = page1.nextURL {
 }
 ```
 
-### Error Handling
+#### Error Handling
 
 ```swift
 do {
@@ -490,11 +452,9 @@ do {
 }
 ```
 
-
 <details>
 
 <summary>Hub API Endpoint Coverage</summary>
-
 
 ##### Collections
 - [x] `GET /api/collections` → `listCollections()`
@@ -704,7 +664,7 @@ do {
 
 </details>
 
-
+---
 
 ### Inference Providers API
 
@@ -796,17 +756,9 @@ let response = try await client.featureExtraction(
     normalize: true
 )
 
-// Access embeddings
 for embedding in response.embeddings {
     print("Embedding dimension: \(embedding.count)")
 }
-
-// Single input convenience method
-let singleResponse = try await client.featureExtraction(
-    model: "sentence-transformers/all-MiniLM-L6-v2",
-    input: "Hello, world!",
-    normalize: true
-)
 ```
 
 #### Text-to-Image
@@ -884,35 +836,3 @@ let response = try await client.speechToText(
 
 print("Transcription: \(response.text)")
 ```
-
-#### Providers
-
-The Inference Providers API supports multiple providers, each with different capabilities and performance characteristics:
-
-```swift
-// Let the API automatically select the best provider
-let response = try await client.chatCompletion(
-    model: "meta-llama/Llama-3.3-70B-Instruct",
-    messages: messages,
-    provider: .auto
-)
-
-// Use specific providers for optimal performance
-let providers: [Provider] = [
-    .cerebras,      // High-performance inference
-    .cohere,        // Language and vision-language models
-    .groq,          // Ultra-fast inference
-    .hfInference,   // Comprehensive model support
-    .replicate,     // Model hosting and inference
-    .together,      // Various AI tasks
-    .fireworks,     // Language and vision models
-    .sambaNova      // Enterprise-grade inference
-]
-```
-
-Provider capabilities:
-- **Chat Completion**: All providers support text-based chat
-- **Vision-Language**: Cohere, Groq, Hyperbolic, SambaNova, and others
-- **Feature Extraction**: HF Inference, Fal AI, Nebius, Together
-- **Text-to-Image**: HF Inference, Nebius
-- **Text-to-Video**: HF Inference
