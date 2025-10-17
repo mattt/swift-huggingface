@@ -1,6 +1,10 @@
 # Swift Hugging Face
 
-A Swift client for the [Hugging Face Hub API](https://huggingface.co/docs/hub/api).
+A Swift client for [Hugging Face](https://huggingface.co), providing access to both 
+the [Hub API](https://huggingface.co/docs/hub/api) 
+for managing models, datasets, and repositories, and 
+the [Inference Providers API](https://huggingface.co/docs/inference-providers/index) 
+for running AI tasks like chat completion, text-to-image generation, and more.
 
 ## Requirements
 
@@ -21,7 +25,12 @@ dependencies: [
 
 ## Usage
 
-### Creating a Client
+This package provides two main APIs in the `HuggingFace` module:
+
+- **Hub API**: For managing models, datasets, spaces, and repositories on Hugging Face
+- **Inference Providers API**: For running AI tasks like chat completion, text-to-image generation, and more
+
+### Hub API
 
 ```swift
 import HuggingFace
@@ -44,7 +53,7 @@ let customClient = Client(
 )
 ```
 
-### Models
+#### Models
 
 ```swift
 // List models
@@ -68,7 +77,7 @@ print("Likes: \(model.likes ?? 0)")
 let tags = try await client.getModelTags()
 ```
 
-### Datasets
+#### Datasets
 
 ```swift
 // List datasets
@@ -481,18 +490,20 @@ do {
 }
 ```
 
-## API Coverage
 
-## ✅ Implemented Endpoints
+<details>
 
-### Collections
+<summary>Hub API Endpoint Coverage</summary>
+
+
+##### Collections
 - [x] `GET /api/collections` → `listCollections()`
 - [x] `GET /api/collections/{namespace}/{slug}-{id}` → `getCollection()`
 - [x] `POST /api/collections/{namespace}/{slug}-{id}/items` → `addCollectionItem()`
 - [x] `POST /api/collections/{namespace}/{slug}-{id}/items/batch` → `batchUpdateCollectionItems()`
 - [x] `DELETE /api/collections/{namespace}/{slug}-{id}/items/{itemId}` → `deleteCollectionItem()`
 
-### Datasets
+##### Datasets
 - [x] `GET /api/datasets` → `listDatasets()`
 - [x] `GET /api/datasets/{namespace}/{repo}` → `getDataset()`
 - [x] `GET /api/datasets-tags-by-type` → `getDatasetTags()`
@@ -637,18 +648,16 @@ do {
 - [x] `PATCH /api/{repoType}/{namespace}/{repo}/discussions/{num}/title` → `updateDiscussionTitle()`
 - [x] `POST /api/discussions/mark-as-read` → `markDiscussionsAsRead()`
 
-## ❌ Not Implemented
-
-### Blog Comments
+##### Blog Comments
 - [ ] `POST /api/blog/{namespace}/{slug}/comment`
 - [ ] `POST /api/blog/{namespace}/{slug}/comment/{commentId}/reply`
 - [ ] `POST /api/blog/{slug}/comment`
 - [ ] `POST /api/blog/{slug}/comment/{commentId}/reply`
 
-### Documentation
+##### Documentation
 - [ ] `GET /api/docs/search`
 
-### Jobs
+##### Jobs
 - [ ] `GET /api/jobs/{namespace}`
 - [ ] `GET /api/jobs/{namespace}/{jobId}`
 - [ ] `POST /api/jobs/{namespace}/{jobId}/cancel`
@@ -656,26 +665,26 @@ do {
 - [ ] `GET /api/jobs/{namespace}/{jobId}/logs`
 - [ ] `GET /api/jobs/{namespace}/{jobId}/metrics`
 
-### Notifications
+##### Notifications
 - [ ] `GET /api/notifications`
 
-### Posts
+##### Posts
 - [ ] `GET /api/posts/{username}/{postSlug}`
 - [ ] `POST /api/posts/{username}/{postSlug}/comment`
 - [ ] `POST /api/posts/{username}/{postSlug}/comment/{commentId}/reply`
 
-### Resolve Cache
+##### Resolve Cache
 - [ ] `GET /api/resolve-cache/datasets/{namespace}/{repo}/{rev}/{path}`
 - [ ] `GET /api/resolve-cache/models/{namespace}/{repo}/{rev}/{path}`
 - [ ] `GET /api/resolve-cache/spaces/{namespace}/{repo}/{rev}/{path}`
 
-### Scheduled Jobs
+##### Scheduled Jobs
 - [ ] `GET /api/scheduled-jobs/{namespace}`
 - [ ] `GET /api/scheduled-jobs/{namespace}/{scheduledJobId}`
 - [ ] `POST /api/scheduled-jobs/{namespace}/{scheduledJobId}/resume`
 - [ ] `POST /api/scheduled-jobs/{namespace}/{scheduledJobId}/suspend`
 
-### Settings & User Management
+##### Settings & User Management
 - [ ] `GET /api/settings/billing/usage`
 - [ ] `GET /api/settings/billing/usage/jobs`
 - [ ] `GET /api/settings/billing/usage/live`
@@ -689,6 +698,221 @@ do {
 - [ ] `POST /api/settings/webhooks/{webhookId}/replay/{logId}`
 - [ ] `POST /api/settings/webhooks/{webhookId}/{action}`
 
-### SQL Console
+##### SQL Console
 - [ ] `GET /api/{repoType}/{namespace}/{repo}/sql-console/embed`
 - [ ] `GET /api/{repoType}/{namespace}/{repo}/sql-console/embed/{id}`
+
+</details>
+
+
+
+### Inference Providers API
+
+The Inference Providers API allows you to run AI tasks using various models and providers. It automatically handles authentication and routing to the best provider for your needs.
+
+#### Creating an Inference Client
+
+```swift
+import HuggingFace
+
+// Create a client with auto-detected authentication
+let client = InferenceClient.default
+
+// Create a client with custom configuration
+let client = InferenceClient(
+    host: URL(string: "https://router.huggingface.co")!,
+    bearerToken: "your_huggingface_token"
+)
+```
+
+The client automatically detects authentication tokens from:
+- `HF_TOKEN` environment variable
+- `HUGGING_FACE_HUB_TOKEN` environment variable
+- `HF_TOKEN_PATH` file
+- `~/.cache/huggingface/token` (standard HF CLI location)
+- `~/.huggingface/token`
+
+#### Chat Completion
+
+Generate conversational responses using language models:
+
+```swift
+let messages: [ChatCompletion.Message] = [
+    .init(role: .system, content: .text("You are a helpful assistant.")),
+    .init(role: .user, content: .text("What is the capital of France?"))
+]
+
+let response = try await client.chatCompletion(
+    model: "meta-llama/Llama-3.3-70B-Instruct",
+    messages: messages,
+    provider: .groq,
+    temperature: 0.7,
+    maxTokens: 1000
+)
+
+print(response.choices.first?.message.content ?? "")
+
+// Streaming chat completion
+for try await chunk in client.chatCompletionStream(
+    model: "meta-llama/Llama-3.3-70B-Instruct",
+    messages: messages,
+    provider: .groq
+) {
+    if let content = chunk.choices.first?.delta.content {
+        print(content, terminator: "")
+    }
+}
+```
+
+Vision-Language Models:
+
+```swift
+let messages: [ChatCompletion.Message] = [
+    .init(role: .user, content: .mixed([
+        .text("What's in this image?"),
+        .image(url: "https://example.com/image.jpg", detail: .auto)
+    ]))
+]
+
+let response = try await client.chatCompletion(
+    model: "meta-llama/Llama-3.2-11B-Vision-Instruct",
+    messages: messages,
+    provider: .hyperbolic
+)
+```
+
+#### Feature Extraction
+
+Extract embeddings from text for similarity search and semantic analysis:
+
+```swift
+let response = try await client.featureExtraction(
+    model: "sentence-transformers/all-MiniLM-L6-v2",
+    inputs: [
+        "The quick brown fox jumps over the lazy dog",
+        "A fast auburn fox leaps above an idle canine"
+    ],
+    provider: .hfInference,
+    normalize: true
+)
+
+// Access embeddings
+for embedding in response.embeddings {
+    print("Embedding dimension: \(embedding.count)")
+}
+
+// Single input convenience method
+let singleResponse = try await client.featureExtraction(
+    model: "sentence-transformers/all-MiniLM-L6-v2",
+    input: "Hello, world!",
+    normalize: true
+)
+```
+
+#### Text-to-Image
+
+Generate images from text prompts:
+
+```swift
+let response = try await client.textToImage(
+    model: "black-forest-labs/FLUX.1-schnell",
+    prompt: "A serene Japanese garden with cherry blossoms",
+    provider: .hfInference,
+    width: 1024,
+    height: 1024,
+    numImages: 1,
+    guidanceScale: 7.5,
+    numInferenceSteps: 50,
+    seed: 42
+)
+
+// Save the generated image
+try response.image.write(to: URL(fileURLWithPath: "generated.png"))
+```
+
+Advanced options:
+
+```swift
+let response = try await client.textToImage(
+    model: "stabilityai/stable-diffusion-xl-base-1.0",
+    prompt: "A futuristic cityscape at sunset",
+    provider: .replicate,
+    negativePrompt: "blurry, low quality, distorted",
+    width: 1024,
+    height: 1024,
+    guidanceScale: 8.0
+)
+```
+
+#### Text-to-Video
+
+Generate videos from text descriptions:
+
+```swift
+let response = try await client.textToVideo(
+    model: "stabilityai/stable-video-diffusion-img2vid-xt",
+    prompt: "A cat playing with a ball of yarn",
+    provider: .hfInference,
+    width: 1024,
+    height: 576,
+    numFrames: 24,
+    frameRate: 8,
+    guidanceScale: 7.5,
+    duration: 3.0
+)
+
+// Save the generated video
+try response.video.write(to: URL(fileURLWithPath: "generated.mp4"))
+```
+
+#### Speech-to-Text
+
+Transcribe audio to text:
+
+```swift
+// Base64-encode your audio file
+let audioData = try Data(contentsOf: audioFileURL)
+let audioBase64 = audioData.base64EncodedString()
+
+let response = try await client.speechToText(
+    model: "openai/whisper-large-v3",
+    audio: audioBase64,
+    provider: .hfInference,
+    language: "en",
+    task: .transcribe
+)
+
+print("Transcription: \(response.text)")
+```
+
+#### Providers
+
+The Inference Providers API supports multiple providers, each with different capabilities and performance characteristics:
+
+```swift
+// Let the API automatically select the best provider
+let response = try await client.chatCompletion(
+    model: "meta-llama/Llama-3.3-70B-Instruct",
+    messages: messages,
+    provider: .auto
+)
+
+// Use specific providers for optimal performance
+let providers: [Provider] = [
+    .cerebras,      // High-performance inference
+    .cohere,        // Language and vision-language models
+    .groq,          // Ultra-fast inference
+    .hfInference,   // Comprehensive model support
+    .replicate,     // Model hosting and inference
+    .together,      // Various AI tasks
+    .fireworks,     // Language and vision models
+    .sambaNova      // Enterprise-grade inference
+]
+```
+
+Provider capabilities:
+- **Chat Completion**: All providers support text-based chat
+- **Vision-Language**: Cohere, Groq, Hyperbolic, SambaNova, and others
+- **Feature Extraction**: HF Inference, Fal AI, Nebius, Together
+- **Text-to-Image**: HF Inference, Nebius
+- **Text-to-Video**: HF Inference
