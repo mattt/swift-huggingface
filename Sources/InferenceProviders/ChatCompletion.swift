@@ -8,7 +8,7 @@ public enum ChatCompletion {
     /// Messages are used in chat completion requests to provide context and instructions
     /// to language models. Each message has a role (system, user, assistant, or tool)
     /// and content.
-    public struct Message: Codable, Hashable, Sendable {
+    public struct Message: Codable, Hashable, Sendable, ExpressibleByStringLiteral {
         /// The role of a message sender in a chat conversation.
         public enum Role: String, Codable, Hashable, Sendable {
             /// System message providing instructions or context.
@@ -180,6 +180,26 @@ public enum ChatCompletion {
             name = try container.decodeIfPresent(String.self, forKey: .name)
             toolCalls = try container.decodeIfPresent([ToolCall].self, forKey: .toolCalls)
             toolCallId = try container.decodeIfPresent(String.self, forKey: .toolCallId)
+        }
+
+        public init(stringLiteral value: String) {
+            self.init(role: .user, content: .text(value))
+        }
+
+        public static func system(_ text: String) -> Message {
+            Message(role: .system, content: .text(text))
+        }
+
+        public static func user(_ text: String) -> Message {
+            Message(role: .user, content: .text(text))
+        }
+
+        public static func assistant(_ text: String) -> Message {
+            Message(role: .assistant, content: .text(text))
+        }
+
+        public static func tool(_ text: String, toolCallId: String) -> Message {
+            Message(role: .tool, content: .text(text), toolCallId: toolCallId)
         }
     }
 

@@ -440,6 +440,73 @@ import Testing
                 )
             }
         }
+
+        @Test("Message static factory methods")
+        func testMessageStaticFactoryMethods() {
+            let systemMessage = ChatCompletion.Message.system("You are a helpful assistant")
+            #expect(systemMessage.role == .system)
+            #expect(systemMessage.content == .text("You are a helpful assistant"))
+
+            let userMessage = ChatCompletion.Message.user("What is the capital of France?")
+            #expect(userMessage.role == .user)
+            #expect(userMessage.content == .text("What is the capital of France?"))
+
+            let assistantMessage = ChatCompletion.Message.assistant("The capital of France is Paris.")
+            #expect(assistantMessage.role == .assistant)
+            #expect(assistantMessage.content == .text("The capital of France is Paris."))
+
+            let toolMessage = ChatCompletion.Message.tool("Result: 42", toolCallId: "call_123")
+            #expect(toolMessage.role == .tool)
+            #expect(toolMessage.content == .text("Result: 42"))
+            #expect(toolMessage.toolCallId == "call_123")
+        }
+
+        @Test("Message ExpressibleByStringLiteral")
+        func testMessageExpressibleByStringLiteral() {
+            let message: ChatCompletion.Message = "Hello, world!"
+            #expect(message.role == .user)
+            #expect(message.content == .text("Hello, world!"))
+        }
+
+        @Test("Message ergonomic API usage")
+        func testMessageErgonomicAPIUsage() {
+            let messages: [ChatCompletion.Message] = [
+                .system("You are a helpful assistant"),
+                .user("What is the capital of France?"),
+                "Tell me a joke",
+            ]
+
+            #expect(messages.count == 3)
+            #expect(messages[0].role == .system)
+            #expect(messages[0].content == .text("You are a helpful assistant"))
+            #expect(messages[1].role == .user)
+            #expect(messages[1].content == .text("What is the capital of France?"))
+            #expect(messages[2].role == .user)
+            #expect(messages[2].content == .text("Tell me a joke"))
+        }
+
+        @Test("Message roundtrip encoding/decoding with static factory")
+        func testMessageRoundtripEncodingWithStaticFactory() throws {
+            let messages: [ChatCompletion.Message] = [
+                .system("You are a helpful assistant"),
+                .user("What is 2+2?"),
+                .assistant("The answer is 4"),
+            ]
+
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(messages)
+
+            let decoder = JSONDecoder()
+            let decoded = try decoder.decode([ChatCompletion.Message].self, from: data)
+
+            #expect(decoded.count == 3)
+            #expect(decoded[0].role == .system)
+            #expect(decoded[0].content == .text("You are a helpful assistant"))
+            #expect(decoded[1].role == .user)
+            #expect(decoded[1].content == .text("What is 2+2?"))
+            #expect(decoded[2].role == .assistant)
+            #expect(decoded[2].content == .text("The answer is 4"))
+        }
     }
 
 #endif  // swift(>=6.1)

@@ -738,8 +738,8 @@ Generate conversational responses using language models:
 
 ```swift
 let messages: [ChatCompletion.Message] = [
-    .init(role: .system, content: .text("You are a helpful assistant.")),
-    .init(role: .user, content: .text("What is the capital of France?"))
+    .system("You are a helpful assistant."),
+    .user("What is the capital of France?")
 ]
 
 let response = try await client.chatCompletion(
