@@ -349,7 +349,9 @@ public extension HubClient {
 
         #if !HUGGINGFACE_ENABLE_XET
             if transport == .xet {
-                throw HTTPClientError.unexpectedError("Xet transport requires the Xet trait")
+                throw HTTPClientError.requestError(
+                    "Xet transport requires enabling the Xet package trait"
+                )
             }
         #endif
 
@@ -463,7 +465,9 @@ public extension HubClient {
 
         #if !HUGGINGFACE_ENABLE_XET
             if transport == .xet {
-                throw HTTPClientError.unexpectedError("Xet transport requires the Xet trait")
+                throw HTTPClientError.requestError(
+                    "Xet transport requires enabling the Xet package trait"
+                )
             }
         #endif
 
