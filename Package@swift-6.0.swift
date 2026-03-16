@@ -1,4 +1,4 @@
-// swift-tools-version: 6.1
+// swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -19,12 +19,6 @@ let package = Package(
             targets: ["HuggingFace"]
         )
     ],
-    traits: [
-        .trait(
-            name: "Xet",
-            description: "Enable Xet transport support.",
-        )
-    ],
     dependencies: [
         .package(url: "https://github.com/mattt/EventSource.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-crypto.git", "1.0.0" ..< "5.0.0"),
@@ -36,11 +30,11 @@ let package = Package(
             dependencies: [
                 .product(name: "EventSource", package: "EventSource"),
                 .product(name: "Crypto", package: "swift-crypto"),
-                .product(name: "Xet", package: "swift-xet", condition: .when(traits: ["Xet"])),
+                .product(name: "Xet", package: "swift-xet"),
             ],
             path: "Sources/HuggingFace",
             swiftSettings: [
-                .define("HUGGINGFACE_ENABLE_XET", .when(traits: ["Xet"]))
+                .define("HUGGINGFACE_ENABLE_XET")
             ]
         ),
         .testTarget(
