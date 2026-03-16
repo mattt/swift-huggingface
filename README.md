@@ -23,6 +23,31 @@ dependencies: [
 ]
 ```
 
+### Optional Xet trait
+
+`swift-huggingface` includes an `Xet` package trait.
+On Swift 6.1+, it is opt-in.
+On Swift 6.0, package traits are unavailable, so Xet remains enabled via the compatibility manifest.
+
+Enable it from the command line when you want Xet support:
+
+```bash
+swift build --traits Xet
+swift test --traits Xet
+```
+
+When declaring `swift-huggingface` as a dependency, enable it explicitly:
+
+```swift
+dependencies: [
+    .package(
+        url: "https://github.com/huggingface/swift-huggingface.git",
+        from: "0.8.0",
+        traits: ["Xet"]
+    )
+]
+```
+
 ## Usage
 
 ### Authentication
