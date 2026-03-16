@@ -347,23 +347,31 @@ public extension HubClient {
             return try Data(contentsOf: cachedPath)
         }
 
-        if endpoint == .resolve, transport.shouldAttemptXet {
-            do {
-                if let data = try await downloadDataWithXet(
-                    repoPath: repoPath,
-                    repo: repo,
-                    kind: kind,
-                    revision: revision,
-                    transport: transport
-                ) {
-                    return data
-                }
-            } catch {
-                if transport == .xet {
-                    throw error
+        #if !HUGGINGFACE_ENABLE_XET
+            if transport == .xet {
+                throw HTTPClientError.unexpectedError("Xet transport requires the Xet trait")
+            }
+        #endif
+
+        #if HUGGINGFACE_ENABLE_XET
+            if endpoint == .resolve, transport.shouldAttemptXet {
+                do {
+                    if let data = try await downloadDataWithXet(
+                        repoPath: repoPath,
+                        repo: repo,
+                        kind: kind,
+                        revision: revision,
+                        transport: transport
+                    ) {
+                        return data
+                    }
+                } catch {
+                    if transport == .xet {
+                        throw error
+                    }
                 }
             }
-        }
+        #endif
 
         // Fallback to existing LFS download method
         let url = httpClient.host
@@ -453,26 +461,34 @@ public extension HubClient {
             throw HubCacheError.cachedPathResolutionFailed(repoPath)
         }
 
+        #if !HUGGINGFACE_ENABLE_XET
+            if transport == .xet {
+                throw HTTPClientError.unexpectedError("Xet transport requires the Xet trait")
+            }
+        #endif
+
         // Try Xet transport first when requested and destination is explicit
-        if endpoint == .resolve, transport.shouldAttemptXet, let xetDestination = destination {
-            do {
-                if let downloaded = try await downloadFileWithXet(
-                    repoPath: repoPath,
-                    repo: repo,
-                    kind: kind,
-                    revision: revision,
-                    destination: xetDestination,
-                    progress: progress,
-                    transport: transport
-                ) {
-                    return downloaded
-                }
-            } catch {
-                if transport == .xet {
-                    throw error
+        #if HUGGINGFACE_ENABLE_XET
+            if endpoint == .resolve, transport.shouldAttemptXet, let xetDestination = destination {
+                do {
+                    if let downloaded = try await downloadFileWithXet(
+                        repoPath: repoPath,
+                        repo: repo,
+                        kind: kind,
+                        revision: revision,
+                        destination: xetDestination,
+                        progress: progress,
+                        transport: transport
+                    ) {
+                        return downloaded
+                    }
+                } catch {
+                    if transport == .xet {
+                        throw error
+                    }
                 }
             }
-        }
+        #endif
 
         // Build URL and gather optional preflight metadata for cache-aware flows
         let url = httpClient.host
@@ -1421,11 +1437,15 @@ private extension HubClient {
     }
 
     func snapshotTransport(for entry: Git.TreeEntry) -> FileDownloadTransport {
+        #if HUGGINGFACE_ENABLE_XET
         let useXet = FileDownloadTransport.automatic.shouldUseXet(
             fileSizeBytes: entry.size,
             minimumFileSizeBytes: xetMinimumFileSizeBytes
         )
         return useXet ? .automatic : .lfs
+        #else
+        return .lfs
+        #endif
     }
 
     func makeSnapshotProgressSamplingTask(
@@ -1781,6 +1801,7 @@ private extension HubClient {
                 try await downloader.data(for: fileID)
             }
         #else
+            _ = transport
             return nil
         #endif
     }
@@ -1820,6 +1841,7 @@ private extension HubClient {
 
             return destination
         #else
+            _ = transport
             return nil
         #endif
     }

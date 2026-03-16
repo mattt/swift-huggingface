@@ -458,6 +458,65 @@ import Testing
             _ = try await client.downloadContentsOfFile(at: "test.txt", from: repoID, endpoint: .raw)
         }
 
+        #if !HUGGINGFACE_ENABLE_XET
+            @Test("Force Xet download throws when Xet trait is disabled", .mockURLSession)
+            func testForcedXetDownloadThrowsWhenTraitDisabled() async throws {
+                let requestCounter = ProgressCallCounter()
+                await MockURLProtocol.setHandler { _ in
+                    requestCounter.increment()
+                    let response = HTTPURLResponse(
+                        url: URL(string: "https://huggingface.co/user/model/resolve/main/test.txt")!,
+                        statusCode: 500,
+                        httpVersion: "HTTP/1.1",
+                        headerFields: [:]
+                    )!
+                    return (response, Data())
+                }
+
+                let client = createMockClient()
+                let repoID: Repo.ID = "user/model"
+                await #expect(throws: HTTPClientError.self) {
+                    _ = try await client.downloadContentsOfFile(
+                        at: "test.txt",
+                        from: repoID,
+                        transport: .xet
+                    )
+                }
+                #expect(requestCounter.count == 0)
+            }
+
+            @Test("Force Xet file download throws when Xet trait is disabled", .mockURLSession)
+            func testForcedXetFileDownloadThrowsWhenTraitDisabled() async throws {
+                let requestCounter = ProgressCallCounter()
+                await MockURLProtocol.setHandler { _ in
+                    requestCounter.increment()
+                    let response = HTTPURLResponse(
+                        url: URL(string: "https://huggingface.co/user/model/resolve/main/test.txt")!,
+                        statusCode: 500,
+                        httpVersion: "HTTP/1.1",
+                        headerFields: [:]
+                    )!
+                    return (response, Data())
+                }
+
+                let client = createMockClient()
+                let repoID: Repo.ID = "user/model"
+                let destination = FileManager.default.temporaryDirectory
+                    .appendingPathComponent(UUID().uuidString)
+                defer { try? FileManager.default.removeItem(at: destination) }
+
+                await #expect(throws: HTTPClientError.self) {
+                    _ = try await client.downloadFile(
+                        at: "test.txt",
+                        from: repoID,
+                        to: destination,
+                        transport: .xet
+                    )
+                }
+                #expect(requestCounter.count == 0)
+            }
+        #endif
+
         @Test("downloadFile localFilesOnly returns cached file without network", .mockURLSession)
         func testDownloadFileLocalFilesOnlyUsesCache() async throws {
             let commit = "1234567890123456789012345678901234567890"
@@ -1413,9 +1472,11 @@ import Testing
             #expect(starts.contains("small-b.bin"))
             #expect(starts.contains("huge.bin"))
             let hugeStartIndex = starts.firstIndex(of: "huge.bin")!
-            let firstTwo = Set(starts.prefix(2))
-            #expect(firstTwo == Set(["small-a.bin", "small-b.bin"]))
-            #expect(hugeStartIndex >= 2)
+            #if HUGGINGFACE_ENABLE_XET
+                let firstTwo = Set(starts.prefix(2))
+                #expect(firstTwo == Set(["small-a.bin", "small-b.bin"]))
+                #expect(hugeStartIndex >= 2)
+            #endif
         }
 
         @Test("downloadSnapshot progress is size weighted", .mockURLSession)
