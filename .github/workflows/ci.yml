@@ -44,12 +44,10 @@ jobs:
       - name: Cache Swift Package Manager dependencies
         uses: actions/cache@v5
         with:
-          path: |
-            ~/.cache/org.swift.swiftpm
-            .build
-          key: ${{ runner.os }}-swift-${{ matrix.swift }}-${{ matrix.traits == '' && 'xet-off' || 'xet-on' }}-spm-${{ hashFiles('**/Package.resolved') }}
+          path: ~/.cache/org.swift.swiftpm
+          key: ${{ runner.os }}-xcode-${{ matrix.xcode }}-swift-${{ matrix.swift }}-${{ matrix.traits == '' && 'xet-off' || 'xet-on' }}-spm-${{ hashFiles('Package.swift', 'Package@swift-6.0.swift', '**/Package.resolved') }}
           restore-keys: |
-            ${{ runner.os }}-swift-${{ matrix.swift }}-${{ matrix.traits == '' && 'xet-off' || 'xet-on' }}-spm-
+            ${{ runner.os }}-xcode-${{ matrix.xcode }}-swift-${{ matrix.swift }}-${{ matrix.traits == '' && 'xet-off' || 'xet-on' }}-spm-
 
       - name: Build
         run: swift build${{ matrix.traits != '' && format(' --traits {0}', matrix.traits) || '' }}
