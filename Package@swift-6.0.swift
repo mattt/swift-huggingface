@@ -39,11 +39,17 @@ let package = Package(
         ),
         .testTarget(
             name: "HuggingFaceTests",
-            dependencies: ["HuggingFace"]
+            dependencies: ["HuggingFace"],
+            swiftSettings: [
+                .define("HUGGINGFACE_ENABLE_XET")
+            ]
         ),
         .testTarget(
             name: "HubBenchmarks",
-            dependencies: ["HuggingFace"]
+            dependencies: ["HuggingFace"],
+            swiftSettings: [
+                .define("HUGGINGFACE_ENABLE_XET")
+            ]
         ),
     ]
 )
