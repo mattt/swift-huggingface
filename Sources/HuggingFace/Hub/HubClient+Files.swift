@@ -736,9 +736,10 @@ public extension HubClient {
             #if canImport(FoundationNetworking)
                 (tempURL, response) = try await session.asyncDownload(for: baseRequest, progress: progress)
             #else
-                (tempURL, response) = try await session.download(
+                (tempURL, response) = try await session.asyncDownloadWithProgress(
                     for: baseRequest,
-                    delegate: progress.map { DownloadProgressDelegate(progress: $0, resumeOffset: resumeOffset) }
+                    progress: progress,
+                    resumeOffset: resumeOffset
                 )
             #endif
         } catch {
