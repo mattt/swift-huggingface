@@ -597,11 +597,10 @@ public extension HubClient {
                         #if canImport(FoundationNetworking)
                             (tempURL, response) = try await session.asyncDownload(for: request, progress: progress)
                         #else
-                            (tempURL, response) = try await session.download(
+                            (tempURL, response) = try await session.asyncDownloadWithProgress(
                                 for: request,
-                                delegate: progress.map {
-                                    DownloadProgressDelegate(progress: $0, resumeOffset: resumeOffset)
-                                }
+                                progress: progress,
+                                resumeOffset: resumeOffset
                             )
                         #endif
                     } catch {
@@ -887,9 +886,9 @@ public extension HubClient {
             to destination: URL,
             progress: Progress? = nil
         ) async throws -> URL {
-            let (tempURL, response) = try await session.download(
-                resumeFrom: resumeData,
-                delegate: progress.map { DownloadProgressDelegate(progress: $0) }
+            let (tempURL, response) = try await session.asyncResumeDownloadWithProgress(
+                resumeData: resumeData,
+                progress: progress
             )
             _ = try httpClient.validateResponse(response, data: nil)
 
@@ -936,43 +935,6 @@ public extension HubClient {
         )
     }
 }
-
-// MARK: - Progress Delegate
-
-#if !canImport(FoundationNetworking)
-    private final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
-        private let progress: Progress
-        private let resumeOffset: Int64
-
-        init(progress: Progress, resumeOffset: Int64 = 0) {
-            self.progress = progress
-            self.resumeOffset = resumeOffset
-        }
-
-        func urlSession(
-            _: URLSession,
-            downloadTask: URLSessionDownloadTask,
-            didWriteData _: Int64,
-            totalBytesWritten: Int64,
-            totalBytesExpectedToWrite: Int64
-        ) {
-            let responseStatus = (downloadTask.response as? HTTPURLResponse)?.statusCode
-            let appliedOffset = responseStatus == 206 ? resumeOffset : 0
-            if totalBytesExpectedToWrite > 0 {
-                progress.totalUnitCount = totalBytesExpectedToWrite + appliedOffset
-            }
-            progress.completedUnitCount = totalBytesWritten + appliedOffset
-        }
-
-        func urlSession(
-            _: URLSession,
-            downloadTask _: URLSessionDownloadTask,
-            didFinishDownloadingTo _: URL
-        ) {
-            // The actual file handling is done in the async/await layer
-        }
-    }
-#endif
 
 // MARK: - Delete Operations
 

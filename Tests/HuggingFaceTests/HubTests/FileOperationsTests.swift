@@ -153,6 +153,23 @@ import Testing
         }
     }
 
+    private final class ProgressUnitHistoryRecorder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _completedValues: [Int64] = []
+
+        func append(completed: Int64) {
+            lock.lock()
+            _completedValues.append(completed)
+            lock.unlock()
+        }
+
+        var completedValues: [Int64] {
+            lock.lock()
+            defer { lock.unlock() }
+            return _completedValues
+        }
+    }
+
     @Suite("File Operations Tests", .serialized)
     struct FileOperationsTests {
         func createMockClient(bearerToken: String? = "test_token") -> HubClient {
@@ -895,6 +912,80 @@ import Testing
             #expect(try Data(contentsOf: blobPath) == full)
             #expect(try Data(contentsOf: cachedPath) == full)
         }
+
+        #if !canImport(FoundationNetworking)
+            @Test("downloadFile reports incremental progress updates", .mockURLSession)
+            func testDownloadFileReportsIncrementalProgressUpdates() async throws {
+                let commit = "1234567890123456789012345678901234567890"
+                let body = Data(repeating: 0xAB, count: 500)
+
+                MockURLProtocol.setChunkSize(100)
+                await MockURLProtocol.setHandler { request in
+                    let path = request.url?.path ?? ""
+                    if path == "/user/model/resolve/main/large.bin" {
+                        if request.httpMethod == "HEAD" {
+                            let response = HTTPURLResponse(
+                                url: request.url!,
+                                statusCode: 200,
+                                httpVersion: "HTTP/1.1",
+                                headerFields: [
+                                    "ETag": "\"etag-large\"",
+                                    "X-Repo-Commit": commit,
+                                ]
+                            )!
+                            return (response, Data())
+                        }
+
+                        let response = HTTPURLResponse(
+                            url: request.url!,
+                            statusCode: 200,
+                            httpVersion: "HTTP/1.1",
+                            headerFields: [
+                                "Content-Type": "application/octet-stream",
+                                "Content-Length": "\(body.count)",
+                            ]
+                        )!
+                        return (response, body)
+                    }
+
+                    let response = HTTPURLResponse(
+                        url: request.url!,
+                        statusCode: 404,
+                        httpVersion: "HTTP/1.1",
+                        headerFields: [:]
+                    )!
+                    return (response, Data())
+                }
+
+                let (client, cacheDirectory) = createMockClientWithCache()
+                defer { try? FileManager.default.removeItem(at: cacheDirectory) }
+
+                let progress = Progress(totalUnitCount: Int64(body.count))
+                let recorder = ProgressUnitHistoryRecorder()
+                let observation = progress.observe(
+                    \.completedUnitCount,
+                    options: [.initial, .new]
+                ) { observedProgress, _ in
+                    recorder.append(completed: observedProgress.completedUnitCount)
+                }
+                defer { observation.invalidate() }
+
+                _ = try await client.downloadFile(
+                    at: "large.bin",
+                    from: "user/model",
+                    kind: .model,
+                    revision: "main",
+                    progress: progress,
+                    transport: .lfs
+                )
+
+                let completedValues = recorder.completedValues
+                #expect(completedValues.isEmpty == false)
+                let finalCompleted = completedValues.last ?? 0
+                #expect(finalCompleted == progress.totalUnitCount)
+                #expect(completedValues.contains(where: { $0 > 0 && $0 < finalCompleted }))
+            }
+        #endif
 
         @Test("downloadFile handles server ignoring range by treating as fresh download", .mockURLSession)
         func testDownloadFileResumeRangeIgnoredReturnsFullBody() async throws {
