@@ -597,11 +597,10 @@ public extension HubClient {
                         #if canImport(FoundationNetworking)
                             (tempURL, response) = try await session.asyncDownload(for: request, progress: progress)
                         #else
-                            (tempURL, response) = try await session.download(
+                            (tempURL, response) = try await session.hfAsyncDownload(
                                 for: request,
-                                delegate: progress.map {
-                                    DownloadProgressDelegate(progress: $0, resumeOffset: resumeOffset)
-                                }
+                                progress: progress,
+                                resumeOffset: resumeOffset
                             )
                         #endif
                     } catch {
@@ -737,9 +736,10 @@ public extension HubClient {
             #if canImport(FoundationNetworking)
                 (tempURL, response) = try await session.asyncDownload(for: baseRequest, progress: progress)
             #else
-                (tempURL, response) = try await session.download(
+                (tempURL, response) = try await session.hfAsyncDownload(
                     for: baseRequest,
-                    delegate: progress.map { DownloadProgressDelegate(progress: $0, resumeOffset: resumeOffset) }
+                    progress: progress,
+                    resumeOffset: resumeOffset
                 )
             #endif
         } catch {
@@ -887,9 +887,9 @@ public extension HubClient {
             to destination: URL,
             progress: Progress? = nil
         ) async throws -> URL {
-            let (tempURL, response) = try await session.download(
+            let (tempURL, response) = try await session.hfAsyncDownload(
                 resumeFrom: resumeData,
-                delegate: progress.map { DownloadProgressDelegate(progress: $0) }
+                progress: progress
             )
             _ = try httpClient.validateResponse(response, data: nil)
 
@@ -940,13 +940,85 @@ public extension HubClient {
 // MARK: - Progress Delegate
 
 #if !canImport(FoundationNetworking)
+    private final class DownloadTaskBox: @unchecked Sendable {
+        var task: URLSessionDownloadTask?
+    }
+
+    private extension URLSession {
+        func hfAsyncDownload(
+            for request: URLRequest,
+            progress: Progress? = nil,
+            resumeOffset: Int64 = 0
+        ) async throws -> (URL, URLResponse) {
+            let box = DownloadTaskBox()
+            return try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { continuation in
+                    let delegate = DownloadProgressDelegate(
+                        progress: progress ?? Progress(totalUnitCount: 0),
+                        resumeOffset: resumeOffset,
+                        continuation: continuation
+                    )
+                    let session = URLSession(
+                        configuration: configuration,
+                        delegate: delegate,
+                        delegateQueue: nil
+                    )
+                    delegate.session = session
+                    let task = session.downloadTask(with: request)
+                    box.task = task
+                    task.resume()
+                }
+            } onCancel: {
+                box.task?.cancel()
+            }
+        }
+
+        func hfAsyncDownload(
+            resumeFrom resumeData: Data,
+            progress: Progress? = nil
+        ) async throws -> (URL, URLResponse) {
+            let box = DownloadTaskBox()
+            return try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { continuation in
+                    let delegate = DownloadProgressDelegate(
+                        progress: progress ?? Progress(totalUnitCount: 0),
+                        appliesResumeOffsetToAllResponses: true,
+                        continuation: continuation
+                    )
+                    let session = URLSession(
+                        configuration: configuration,
+                        delegate: delegate,
+                        delegateQueue: nil
+                    )
+                    delegate.session = session
+                    let task = session.downloadTask(withResumeData: resumeData)
+                    box.task = task
+                    task.resume()
+                }
+            } onCancel: {
+                box.task?.cancel()
+            }
+        }
+    }
+
     private final class DownloadProgressDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
         private let progress: Progress
-        private let resumeOffset: Int64
+        private let appliesResumeOffsetToAllResponses: Bool
+        private let continuation: CheckedContinuation<(URL, URLResponse), Error>?
+        fileprivate weak var session: URLSession?
+        private var currentResumeOffset: Int64
+        private var hasResumed = false
 
-        init(progress: Progress, resumeOffset: Int64 = 0) {
+        init(
+            progress: Progress,
+            resumeOffset: Int64 = 0,
+            appliesResumeOffsetToAllResponses: Bool = false,
+            continuation: CheckedContinuation<(URL, URLResponse), Error>? = nil
+        ) {
             self.progress = progress
-            self.resumeOffset = resumeOffset
+            self.currentResumeOffset = resumeOffset
+            self.appliesResumeOffsetToAllResponses = appliesResumeOffsetToAllResponses
+            self.continuation = continuation
         }
 
         func urlSession(
@@ -957,7 +1029,10 @@ public extension HubClient {
             totalBytesExpectedToWrite: Int64
         ) {
             let responseStatus = (downloadTask.response as? HTTPURLResponse)?.statusCode
-            let appliedOffset = responseStatus == 206 ? resumeOffset : 0
+            let appliesOffset =
+                currentResumeOffset > 0
+                && (responseStatus == 206 || appliesResumeOffsetToAllResponses)
+            let appliedOffset = appliesOffset ? currentResumeOffset : 0
             if totalBytesExpectedToWrite > 0 {
                 progress.totalUnitCount = totalBytesExpectedToWrite + appliedOffset
             }
@@ -967,9 +1042,51 @@ public extension HubClient {
         func urlSession(
             _: URLSession,
             downloadTask _: URLSessionDownloadTask,
-            didFinishDownloadingTo _: URL
+            didResumeAtOffset fileOffset: Int64,
+            expectedTotalBytes: Int64
         ) {
-            // The actual file handling is done in the async/await layer
+            currentResumeOffset = fileOffset
+            progress.completedUnitCount = fileOffset
+            if expectedTotalBytes > 0 {
+                progress.totalUnitCount = expectedTotalBytes
+            }
+        }
+
+        func urlSession(
+            _: URLSession,
+            downloadTask: URLSessionDownloadTask,
+            didFinishDownloadingTo location: URL
+        ) {
+            guard let continuation, !hasResumed else { return }
+            hasResumed = true
+
+            guard let response = downloadTask.response else {
+                session?.invalidateAndCancel()
+                continuation.resume(throwing: URLError(.badServerResponse))
+                return
+            }
+
+            let persistedURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+            do {
+                try? FileManager.default.removeItem(at: persistedURL)
+                try FileManager.default.moveItem(at: location, to: persistedURL)
+                if progress.totalUnitCount > 0 {
+                    progress.completedUnitCount = progress.totalUnitCount
+                }
+                session?.finishTasksAndInvalidate()
+                continuation.resume(returning: (persistedURL, response))
+            } catch {
+                session?.invalidateAndCancel()
+                continuation.resume(throwing: error)
+            }
+        }
+
+        func urlSession(_: URLSession, task _: URLSessionTask, didCompleteWithError error: Error?) {
+            guard let continuation, !hasResumed else { return }
+            hasResumed = true
+            session?.invalidateAndCancel()
+            continuation.resume(throwing: error ?? URLError(.badServerResponse))
         }
     }
 #endif
