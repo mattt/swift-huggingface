@@ -34,21 +34,33 @@
                 params["region"] = .string(region.rawValue)
             }
 
-            // Server resolves "me" to the authenticated user when no org is given.
-            let namespace = organization ?? "me"
-            let path = "/api/buckets/\(namespace)/\(name)"
+            // "me" == "the authenticated user", accepted at creation time
+            let pathNamespace = organization ?? "me"
+            let path = "/api/buckets/\(pathNamespace)/\(name)"
 
             do {
                 let response: CreateBucketResponse = try await httpClient.fetch(.post, path, params: params)
-                return (url: response.url, bucketId: "\(namespace)/\(name)")
+                return (url: response.url, bucketId: Self.parseCanonicalBucketID(fromURL: response.url))
             } catch let HTTPClientError.responseError(response, _) where existOk && response.statusCode == 409 {
                 var url = httpClient.host.appending(path: "buckets")
                 if let organization {
                     url = url.appending(path: organization)
                 }
                 url = url.appending(path: name)
-                return (url: url.absoluteString, bucketId: nil)
+                // We know the canonical id only when the caller passed an explicit organization
+                let bucketId: String? = organization.map { "\($0)/\(name)" }
+                return (url: url.absoluteString, bucketId: bucketId)
             }
+        }
+
+        /// Extract the canonical `"namespace/name"` from a bucket URL such as
+        /// `https://huggingface.co/buckets/{namespace}/{name}`. Returns `nil` if
+        /// the URL doesn't match the expected pattern.
+        private static func parseCanonicalBucketID(fromURL urlString: String) -> String? {
+            guard let url = URL(string: urlString) else { return nil }
+            let segments = url.pathComponents.filter { $0 != "/" }
+            guard segments.count >= 3, segments.first == "buckets" else { return nil }
+            return "\(segments[1])/\(segments[2])"
         }
 
         /// Gets information about a specific bucket.
