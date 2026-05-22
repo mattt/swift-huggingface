@@ -2,111 +2,34 @@
 
     import Foundation
 
-    /// A namespace for bucket-related types and functionality.
-    ///
-    /// Buckets are a non-versioned object-storage repo type on the Hub. They sit
-    /// alongside models/datasets/spaces rather than being a fourth `Repo.Kind`
-    /// case, because their data model differs in load-bearing ways: no `revision`
-    /// dimension, content is Xet-addressed (every file carries an `xet_hash`),
-    /// and the endpoint layout is `/api/buckets/{id}` rather than the
-    /// `/api/{type}s/{namespace}/{name}` pattern shared by the other kinds.
-    ///
-    /// Because file content is fundamentally Xet-content-addressed, the entire
-    /// bucket surface is gated behind the `Xet` package trait — without Xet, the
-    /// types in this namespace and the methods on `HubClient` are absent.
-    public enum Bucket {
-        // MARK: - Identifier
+    /// Information about a bucket on the Hub.
+    public struct Bucket: Identifiable, Codable, Hashable, Sendable {
+        public typealias ID = Repo.ID
 
-        /// An identifier for a bucket in the format `"namespace/name"`.
-        ///
-        /// Some endpoints take the full `{namespace}/{name}` as a single path
-        /// component; others (notably `createBucket`) take the two halves
-        /// separately. Both forms are exposed here for convenience.
-        public struct ID: Hashable, Sendable, CustomStringConvertible {
-            /// The namespace (user or organization) that owns the bucket.
-            public let namespace: String
+        /// The bucket's identifier (`namespace/name`).
+        public let id: Bucket.ID
 
-            /// The bucket's name within its namespace.
-            public let name: String
+        /// The bucket's visibility.
+        public let visibility: Repo.Visibility?
 
-            public init(namespace: String, name: String) {
-                self.namespace = namespace
-                self.name = name
-            }
+        /// When the bucket was created.
+        public let createdAt: Date?
 
-            /// Parse a bucket identifier of the form `"namespace/name"`.
-            ///
-            /// - Returns: A parsed identifier, or `nil` if `rawValue` doesn't
-            ///   match the `namespace/name` shape (exactly one `/`, non-empty
-            ///   halves).
-            public init?(rawValue: String) {
-                let parts = rawValue.split(separator: "/", omittingEmptySubsequences: false)
-                guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
-                self.namespace = String(parts[0])
-                self.name = String(parts[1])
-            }
+        /// Total size of the bucket in bytes.
+        public let size: Int64?
 
-            /// The `"namespace/name"` form used in URL path components.
-            public var rawValue: String { "\(namespace)/\(name)" }
+        /// Number of files in the bucket.
+        public let totalFiles: Int?
 
-            public var description: String { rawValue }
+        private enum CodingKeys: String, CodingKey {
+            case id
+            case visibility = "private"
+            case createdAt
+            case size
+            case totalFiles
         }
-
-        // MARK: - Metadata
-
-        /// Information about a bucket on the Hub, returned by
-        /// ``HubClient/bucketInfo(_:)`` and ``HubClient/listBuckets(namespace:search:)``.
-        public struct Info: Codable, Hashable, Sendable {
-            /// The bucket's full identifier, `"namespace/name"`.
-            public let id: String
-
-            /// Whether the bucket is private.
-            public let isPrivate: Bool
-
-            /// When the bucket was created.
-            public let createdAt: Date
-
-            /// Total size of the bucket in bytes.
-            public let size: Int64
-
-            /// Number of files in the bucket.
-            public let totalFiles: Int
-
-            private enum CodingKeys: String, CodingKey {
-                case id
-                case isPrivate = "private"
-                case createdAt
-                case size
-                case totalFiles
-            }
-        }
-
-        // MARK: - URL
-
-        /// A parsed bucket URL on the Hub. Returned by ``HubClient/createBucket(_:visibility:resourceGroupId:region:existOk:)``.
-        public struct URL: Hashable, Sendable {
-            /// The full URL, e.g. `"https://huggingface.co/buckets/user/my-bucket"`.
-            public let url: String
-
-            /// Hub endpoint (usually `"https://huggingface.co"`).
-            public let endpoint: String
-
-            /// The bucket's namespace (user or organization).
-            public let namespace: String
-
-            /// The bucket's full identifier, `"namespace/name"`.
-            public let bucketID: String
-
-            /// The bucket as a `hf://buckets/{namespace}/{name}` URI string.
-            public var uri: String { "hf://buckets/\(bucketID)" }
-        }
-
-        // MARK: - Tree entries
 
         /// An entry in a bucket's tree listing — either a file or a folder.
-        ///
-        /// The Hub returns a mixed stream of files and folders for non-recursive
-        /// listings; this enum discriminates on the `type` field.
         public enum TreeEntry: Sendable, Hashable, Decodable {
             case file(File)
             case folder(Folder)
@@ -151,7 +74,7 @@
             /// File size in bytes.
             public let size: Int64
 
-            /// Content-addressed Xet hash. Always present (buckets are Xet-only).
+            /// Content-addressed Xet hash. Always present as buckets are Xet-only.
             public let xetHash: String
 
             /// Last-modified time, if known.
@@ -181,15 +104,6 @@
             /// When the folder was last touched, if known.
             public let uploadedAt: Date?
         }
-
-        /// Metadata for a single bucket file: size + Xet hash. Returned by
-        /// ``HubClient/getBucketPathsInfo(_:paths:)`` and similar.
-        public struct FileMetadata: Codable, Hashable, Sendable {
-            public let size: Int64
-            public let xetHash: String
-        }
-
-        // MARK: - Region (create-bucket option)
 
         /// Optional cloud region for bucket creation. Requires Team plan or above.
         public enum Region: String, Codable, Sendable, CaseIterable {

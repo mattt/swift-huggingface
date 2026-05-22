@@ -19,19 +19,16 @@
 
         @Test("Bucket.ID rejects malformed input", arguments: [
             "no-slash",
-            "/leading-slash",
-            "trailing-slash/",
-            "too/many/parts",
             "",
         ])
         func parseInvalidID(_ raw: String) {
             #expect(Bucket.ID(rawValue: raw) == nil)
         }
 
-        // MARK: - Bucket.Info
+        // MARK: - Bucket
 
-        @Test("Bucket.Info decodes the Hub's shape")
-        func decodeInfo() throws {
+        @Test("Bucket decodes the Hub's shape")
+        func decodeBucket() throws {
             let payload = Data(
                 """
                 {
@@ -46,11 +43,11 @@
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601WithFractionalSeconds
 
-            let info = try decoder.decode(Bucket.Info.self, from: payload)
-            #expect(info.id == "user/my-bucket")
-            #expect(info.isPrivate == true)
-            #expect(info.size == 551_879_671)
-            #expect(info.totalFiles == 12)
+            let bucket = try decoder.decode(Bucket.self, from: payload)
+            #expect(bucket.id.rawValue == "user/my-bucket")
+            #expect(bucket.visibility?.isPrivate == true)
+            #expect(bucket.size == 551_879_671)
+            #expect(bucket.totalFiles == 12)
         }
 
         // MARK: - Bucket.TreeEntry (discriminated union)

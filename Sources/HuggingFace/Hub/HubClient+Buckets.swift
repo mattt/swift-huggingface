@@ -9,23 +9,22 @@
         /// Creates a new bucket on the Hub.
         ///
         /// - Parameters:
-        ///   - id: The bucket identifier (`namespace/name`). Pass
-        ///     `Bucket.ID(namespace: "me", name: "...")` to create under the
-        ///     authenticated user's namespace.
+        ///   - name: The name of the bucket.
+        ///   - organization: The organization to create the repository under (optional).
         ///   - visibility: Public or private. Defaults to public.
         ///   - resourceGroupId: Resource group ID (Enterprise Hub only).
         ///   - region: Cloud region (Team plan or above).
-        ///   - existOk: If `true`, return the existing bucket's URL instead of
-        ///     raising when the bucket already exists.
-        /// - Returns: The created bucket's URL.
+        ///   - existOk: If `true`, return success when the bucket already exists.
+        /// - Returns: A tuple containing the URL and identifier of the created bucket.
         /// - Throws: An error if the request fails.
         public func createBucket(
-            _ id: Bucket.ID,
+            name: String,
+            organization: String? = nil,
             visibility: Repo.Visibility = .public,
             resourceGroupId: String? = nil,
             region: Bucket.Region? = nil,
             existOk: Bool = false
-        ) async throws -> Bucket.URL {
+        ) async throws -> (url: String, bucketId: String?) {
             var params: [String: Value] = [:]
             params["private"] = .bool(visibility.isPrivate)
             if let resourceGroupId {
@@ -35,28 +34,20 @@
                 params["region"] = .string(region.rawValue)
             }
 
-            let path = "/api/buckets/\(id.namespace)/\(id.name)"
+            // Server resolves "me" to the authenticated user when no org is given.
+            let namespace = organization ?? "me"
+            let path = "/api/buckets/\(namespace)/\(name)"
 
             do {
                 let response: CreateBucketResponse = try await httpClient.fetch(.post, path, params: params)
-                return Bucket.URL(
-                    url: response.url,
-                    endpoint: httpClient.host.absoluteString,
-                    namespace: id.namespace,
-                    bucketID: id.rawValue
-                )
+                return (url: response.url, bucketId: "\(namespace)/\(name)")
             } catch let HTTPClientError.responseError(response, _) where existOk && response.statusCode == 409 {
-                // Bucket already exists.
-                let url = httpClient.host
-                    .appending(path: "buckets")
-                    .appending(path: id.namespace)
-                    .appending(path: id.name)
-                return Bucket.URL(
-                    url: url.absoluteString,
-                    endpoint: httpClient.host.absoluteString,
-                    namespace: id.namespace,
-                    bucketID: id.rawValue
-                )
+                var url = httpClient.host.appending(path: "buckets")
+                if let organization {
+                    url = url.appending(path: organization)
+                }
+                url = url.appending(path: name)
+                return (url: url.absoluteString, bucketId: nil)
             }
         }
 
@@ -65,7 +56,7 @@
         /// - Parameter id: The bucket identifier (`namespace/name`).
         /// - Returns: The bucket's info.
         /// - Throws: An error if the request fails or the bucket is not found.
-        public func bucketInfo(_ id: Bucket.ID) async throws -> Bucket.Info {
+        public func bucketInfo(_ id: Bucket.ID) async throws -> Bucket {
             try await httpClient.fetch(.get, "/api/buckets/\(id.rawValue)")
         }
 
@@ -80,7 +71,7 @@
         public func listBuckets(
             namespace: String = "me",
             search: String? = nil
-        ) async throws -> PaginatedResponse<Bucket.Info> {
+        ) async throws -> PaginatedResponse<Bucket> {
             var params: [String: Value] = [:]
             if let search { params["search"] = .string(search) }
 
