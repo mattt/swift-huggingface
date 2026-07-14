@@ -23,12 +23,14 @@ let package = Package(
         .trait(
             name: "Xet",
             description: "Enable Xet transport support.",
-        )
+        ),
+        .default(enabledTraits: ["Xet"])
     ],
     dependencies: [
         .package(url: "https://github.com/mattt/EventSource.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-crypto.git", "1.0.0" ..< "5.0.0"),
-        .package(url: "https://github.com/huggingface/swift-xet.git", from: "0.2.0"),
+//        .package(url: "https://github.com/huggingface/swift-xet.git", from: "0.2.0"),
+        .package(url: "https://github.com/impel-intelligence/swift-xet.git", from: "1.0.0")
     ],
     targets: [
         .target(

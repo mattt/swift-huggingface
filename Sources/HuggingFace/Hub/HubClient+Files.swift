@@ -1800,7 +1800,8 @@ private extension HubClient {
 
             return try await Xet.withDownloader(
                 refreshURL: xetRefreshURL(for: repo, kind: kind, revision: revision),
-                hubToken: try? await httpClient.tokenProvider.getToken()
+                hubToken: try? await httpClient.tokenProvider.getToken(),
+                configuration: xetTuning.toConfiguration()
             ) { downloader in
                 try await downloader.data(for: fileID)
             }
@@ -1835,13 +1836,14 @@ private extension HubClient {
 
             _ = try await Xet.withDownloader(
                 refreshURL: xetRefreshURL(for: repo, kind: kind, revision: revision),
-                hubToken: try? await httpClient.tokenProvider.getToken()
+                hubToken: try? await httpClient.tokenProvider.getToken(),
+                configuration: xetTuning.toConfiguration()
             ) { downloader in
-                try await downloader.download(fileID, to: destination)
+                try await downloader.download(fileID, to: destination) { bytesWritten, totalBytes in
+                    progress?.completedUnitCount = bytesWritten
+                    progress?.totalUnitCount = totalBytes
+                }
             }
-
-            progress?.totalUnitCount = 100
-            progress?.completedUnitCount = 100
 
             return destination
         #else

@@ -74,6 +74,11 @@ public final class HubClient: Sendable {
     /// When set, downloaded files are stored in a Python-compatible cache structure,
     /// allowing cache reuse between Swift and Python Hugging Face clients.
     public let cache: HubCache?
+    
+    /// Allows the user to tune the download configuration of Xet.
+    ///
+    /// This requires the "Xet" trait for any settings to take effect.
+    public let xetTuning: XetTuning
 
     /// The host URL for requests made by the client.
     public var host: URL {
@@ -109,14 +114,16 @@ public final class HubClient: Sendable {
     public convenience init(
         session: URLSession = URLSession(configuration: .default),
         userAgent: String? = nil,
-        cache: HubCache? = .default
+        cache: HubCache? = .default,
+        xetTuningConfig: XetTuning = XetTuning()
     ) {
         self.init(
             session: session,
             host: Self.detectHost(),
             userAgent: userAgent,
             tokenProvider: .environment,
-            cache: cache
+            cache: cache,
+            xetTuningConfig: xetTuningConfig
         )
     }
 
@@ -134,14 +141,16 @@ public final class HubClient: Sendable {
         host: URL,
         userAgent: String? = nil,
         bearerToken: String? = nil,
-        cache: HubCache? = .default
+        cache: HubCache? = .default,
+        xetTuningConfig: XetTuning = XetTuning()
     ) {
         self.init(
             session: session,
             host: host,
             userAgent: userAgent,
             tokenProvider: bearerToken.map { .fixed(token: $0) } ?? .none,
-            cache: cache
+            cache: cache,
+            xetTuningConfig: xetTuningConfig
         )
     }
 
@@ -159,7 +168,8 @@ public final class HubClient: Sendable {
         host: URL,
         userAgent: String? = nil,
         tokenProvider: TokenProvider,
-        cache: HubCache? = .default
+        cache: HubCache? = .default,
+        xetTuningConfig: XetTuning = XetTuning()
     ) {
         self.httpClient = HTTPClient(
             host: host,
@@ -177,6 +187,7 @@ public final class HubClient: Sendable {
             self.metadataSession = session
         #endif
         self.cache = cache
+        self.xetTuning = xetTuningConfig
     }
 
     // MARK: - Auto-detection
