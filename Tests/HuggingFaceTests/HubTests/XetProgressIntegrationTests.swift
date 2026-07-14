@@ -26,7 +26,6 @@ private final class ProgressSnapshoter: NSObject, @unchecked Sendable {
     func observe(progress: Progress) {
         observation = progress.observe(\.completedUnitCount) { [weak self] progress, _ in
             self?.record(progress.completedUnitCount)
-            print(progress.completedUnitCount)
         }
     }
     
