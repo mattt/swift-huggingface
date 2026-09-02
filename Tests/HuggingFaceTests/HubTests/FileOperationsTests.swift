@@ -2260,7 +2260,7 @@ import Testing
             let contents =
                 (try? FileManager.default.contentsOfDirectory(atPath: FileManager.default.temporaryDirectory.path))
                 ?? []
-            return Set(contents.filter { $0.hasPrefix("CFNetworkDownload_") })
+            return Set(contents.filter { $0.hasPrefix("CFNetworkDownload_") || $0.hasPrefix("hf-download-") })
         }
 
         /// Waits briefly for any download temp files created since `before` to be removed.
@@ -2272,6 +2272,33 @@ import Testing
             }
             return downloadTempFiles().subtracting(before)
         }
+
+        #if !canImport(FoundationNetworking)
+            @Test("Download temp file has a recognizable name", .mockURLSession)
+            func testDownloadTempFileHasRecognizableName() async throws {
+                await MockURLProtocol.setHandler { request in
+                    let response = HTTPURLResponse(
+                        url: request.url!,
+                        statusCode: 200,
+                        httpVersion: "HTTP/1.1",
+                        headerFields: ["Content-Type": "text/plain"]
+                    )!
+                    return (response, Data("content".utf8))
+                }
+
+                let configuration = URLSessionConfiguration.ephemeral
+                configuration.protocolClasses = [MockURLProtocol.self]
+                let session = URLSession(configuration: configuration)
+                let request = URLRequest(url: URL(string: "https://huggingface.co/user/model/resolve/main/test.txt")!)
+
+                let (tempURL, _) = try await session.hfAsyncDownload(for: request)
+                defer { try? FileManager.default.removeItem(at: tempURL) }
+
+                #expect(tempURL.lastPathComponent.hasPrefix("hf-download-"))
+                #expect(tempURL.pathExtension == "tmp")
+                #expect(tempURL.deletingLastPathComponent().path == FileManager.default.temporaryDirectory.path)
+            }
+        #endif
 
         @Test("downloadFile removes the download temp file after caching (ETag flow)", .mockURLSession)
         func testDownloadFileRemovesTempFileAfterCachingWithETag() async throws {
