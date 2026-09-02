@@ -177,7 +177,12 @@ public struct HubCache: Sendable {
     ///   - ref: The reference name (e.g., "main").
     /// - Returns: The commit hash if found, `nil` otherwise.
     public func resolveRevision(repo: Repo.ID, kind: Repo.Kind, ref: String) -> String? {
-        let refFile = refsDirectory(repo: repo, kind: kind).appendingPathComponent(ref)
+        let refsDirectory = refsDirectory(repo: repo, kind: kind)
+        // Refs may be nested (e.g. "refs/pr/5"), but must stay within the refs directory.
+        guard (try? validateFilename(ref, withinDirectory: refsDirectory)) != nil else {
+            return nil
+        }
+        let refFile = refsDirectory.appendingPathComponent(ref)
         guard let contents = try? String(contentsOf: refFile, encoding: .utf8) else {
             return nil
         }
@@ -235,7 +240,14 @@ public struct HubCache: Sendable {
             return nil
         }
 
-        let snapshotFile = snapshotsDirectory(repo: repo, kind: kind)
+        let snapshotsDirectory = snapshotsDirectory(repo: repo, kind: kind)
+        // Reject filenames that would escape the cache directory (e.g. "../../secret").
+        guard (try? validateFilename(filename, withinDirectory: snapshotsDirectory)) != nil else {
+            return nil
+        }
+
+        let snapshotFile =
+            snapshotsDirectory
             .appendingPathComponent(commitHash)
             .appendingPathComponent(filename)
 
