@@ -2149,6 +2149,83 @@ import Testing
 
         // MARK: - Error Handling Tests
 
+        // MARK: - Temporary File Cleanup Tests
+
+        /// Returns the URLSession download temp files currently in the temporary directory.
+        func downloadTempFiles() -> Set<String> {
+            let contents =
+                (try? FileManager.default.contentsOfDirectory(atPath: FileManager.default.temporaryDirectory.path))
+                ?? []
+            return Set(contents.filter { $0.hasPrefix("CFNetworkDownload_") })
+        }
+
+        /// Waits briefly for any download temp files created since `before` to be removed.
+        func newDownloadTempFiles(since before: Set<String>) async -> Set<String> {
+            for _ in 0 ..< 20 {
+                let new = downloadTempFiles().subtracting(before)
+                if new.isEmpty { return new }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            return downloadTempFiles().subtracting(before)
+        }
+
+        @Test("downloadFile removes the download temp file after caching (ETag flow)", .mockURLSession)
+        func testDownloadFileRemovesTempFileAfterCachingWithETag() async throws {
+            let commit = "1234567890123456789012345678901234567890"
+            await MockURLProtocol.setHandler { request in
+                let headers = [
+                    "ETag": "\"etag-123\"",
+                    "X-Repo-Commit": commit,
+                    "Content-Type": "text/plain",
+                ]
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 200,
+                    httpVersion: "HTTP/1.1",
+                    headerFields: headers
+                )!
+                return (response, request.httpMethod == "HEAD" ? Data() : Data("content".utf8))
+            }
+
+            let (client, cacheDirectory) = createMockClientWithCache()
+            defer { try? FileManager.default.removeItem(at: cacheDirectory) }
+
+            let before = downloadTempFiles()
+            _ = try await client.downloadFile(at: "test.txt", from: "user/model", revision: "main")
+
+            let leaked = await newDownloadTempFiles(since: before)
+            #expect(leaked.isEmpty, "Leaked download temp files: \(leaked)")
+        }
+
+        @Test("downloadFile removes the download temp file after caching (fallback flow)", .mockURLSession)
+        func testDownloadFileRemovesTempFileAfterCachingWithoutPreflightMetadata() async throws {
+            let commit = "1234567890123456789012345678901234567890"
+            await MockURLProtocol.setHandler { request in
+                // HEAD carries no cache metadata, so the generic fallback path is used;
+                // the GET response carries it, so the file is still stored in the cache.
+                let headers: [String: String] =
+                    request.httpMethod == "HEAD"
+                    ? ["Content-Type": "text/plain"]
+                    : ["ETag": "\"etag-123\"", "X-Repo-Commit": commit, "Content-Type": "text/plain"]
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 200,
+                    httpVersion: "HTTP/1.1",
+                    headerFields: headers
+                )!
+                return (response, request.httpMethod == "HEAD" ? Data() : Data("content".utf8))
+            }
+
+            let (client, cacheDirectory) = createMockClientWithCache()
+            defer { try? FileManager.default.removeItem(at: cacheDirectory) }
+
+            let before = downloadTempFiles()
+            _ = try await client.downloadFile(at: "test.txt", from: "user/model", revision: "main")
+
+            let leaked = await newDownloadTempFiles(since: before)
+            #expect(leaked.isEmpty, "Leaked download temp files: \(leaked)")
+        }
+
         @Test("Handle network error", .mockURLSession)
         func testNetworkError() async throws {
             await MockURLProtocol.setHandler { request in
