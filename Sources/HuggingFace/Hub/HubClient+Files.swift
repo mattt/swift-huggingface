@@ -703,6 +703,8 @@ public extension HubClient {
                             revision: commitHash,
                             filename: repoPath
                         ) {
+                            // The file was copied into the cache; the download temp file is no longer needed.
+                            try? FileManager.default.removeItem(at: tempURL)
                             return try copyFileToDestinationIfNeeded(
                                 cachedPath,
                                 destination: destination
@@ -791,6 +793,8 @@ public extension HubClient {
                 revision: commitHash,
                 filename: repoPath
             ) {
+                // The file was copied into the cache; the download temp file is no longer needed.
+                try? FileManager.default.removeItem(at: tempURL)
                 return try copyFileToDestinationIfNeeded(
                     cachedPath,
                     destination: destination
