@@ -948,7 +948,7 @@ public extension HubClient {
         var task: URLSessionDownloadTask?
     }
 
-    private extension URLSession {
+    extension URLSession {
         func hfAsyncDownload(
             for request: URLRequest,
             progress: Progress? = nil,
@@ -1070,8 +1070,9 @@ public extension HubClient {
                 return
             }
 
+            // Use a recognizable name so stray files are easy to attribute (see #52).
             let persistedURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent(UUID().uuidString)
+                .appendingPathComponent("hf-download-\(UUID().uuidString).tmp")
             do {
                 try? FileManager.default.removeItem(at: persistedURL)
                 try FileManager.default.moveItem(at: location, to: persistedURL)
