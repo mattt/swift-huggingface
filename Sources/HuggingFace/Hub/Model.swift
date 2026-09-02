@@ -51,7 +51,7 @@ public struct Model: Identifiable, Codable, Sendable {
     public let downloadsAllTime: Int?
 
     /// The trending score.
-    public let trendingScore: Int?
+    public let trendingScore: Double?
 
     /// The used storage in bytes.
     public let usedStorage: Int?
