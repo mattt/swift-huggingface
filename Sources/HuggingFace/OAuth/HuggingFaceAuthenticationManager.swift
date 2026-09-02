@@ -104,9 +104,15 @@ import Foundation
                     }
 
                     Task { @MainActor in
-                        authSession.prefersEphemeralWebBrowserSession = false
-                        authSession.presentationContextProvider =
-                            HuggingFaceAuthenticationPresentationContextProvider.shared
+                        // `prefersEphemeralWebBrowserSession` is unavailable on tvOS.
+                        #if !os(tvOS)
+                            authSession.prefersEphemeralWebBrowserSession = false
+                        #endif
+                        // `presentationContextProvider` is unavailable on tvOS and watchOS.
+                        #if !os(tvOS) && !os(watchOS)
+                            authSession.presentationContextProvider =
+                                HuggingFaceAuthenticationPresentationContextProvider.shared
+                        #endif
 
                         if !authSession.start() {
                             continuation.resume(throwing: OAuthError.sessionFailedToStart)
@@ -450,7 +456,7 @@ import Foundation
     }
 #endif  // canImport(AppKit) && !targetEnvironment(macCatalyst) && canImport(AuthenticationServices)
 
-#if canImport(UIKit) && canImport(AuthenticationServices)
+#if canImport(UIKit) && canImport(AuthenticationServices) && !os(tvOS) && !os(watchOS)
     import UIKit
 
     @MainActor
@@ -484,7 +490,7 @@ import Foundation
             return ASPresentationAnchor()
         }
     }
-#endif  // canImport(UIKit) && canImport(AuthenticationServices)
+#endif  // canImport(UIKit) && canImport(AuthenticationServices) && !os(tvOS) && !os(watchOS)
 
 // MARK: -
 
