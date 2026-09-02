@@ -295,19 +295,20 @@ struct FileLockTests {
         await holdingLock.wait(timeout: 5)
         #expect(holdingLock.isFulfilled)
 
-        let lock2 = FileLock(path: targetPath, blocking: false)
-        let startTime = ContinuousClock.now
+        // A long retry delay and a retry cap make a regression (retrying despite
+        // `blocking: false`) show up as `attempts > 1` rather than as a hang.
+        let lock2 = FileLock(path: targetPath, maxRetries: 1, retryDelay: 10, blocking: false)
         var didFail = false
         do {
             _ = try await lock2.withLock {
                 Issue.record("non-blocking lock should have failed")
             }
-        } catch is FileLockError {
+        } catch FileLockError.acquisitionFailed(_, let attempts, let totalWaitTime) {
             didFail = true
+            #expect(attempts == 1)
+            #expect(totalWaitTime == 0)
         }
-        let elapsed = ContinuousClock.now - startTime
         #expect(didFail)
-        #expect(elapsed < .milliseconds(100))
     }
 
     @Test("Non-blocking mode succeeds when lock is available")
