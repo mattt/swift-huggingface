@@ -1007,4 +1007,71 @@ struct HubCacheTests {
         )
         #expect(cachedPath != nil)
     }
+
+    // MARK: - Cache Lookup Path Traversal Validation Tests
+
+    @Test("Cached file path rejects filename with path traversal")
+    func cachedFilePathRejectsFilenamePathTraversal() throws {
+        let cacheDirectory = tempDirectory.appendingPathComponent("cache", isDirectory: true)
+        let cache = HubCache(cacheDirectory: cacheDirectory)
+        let repoID: Repo.ID = "user/repo"
+        let commitHash = "abc123def456789012345678901234567890abcd"
+
+        // A file that lives outside the cache directory.
+        let outsideFile = tempDirectory.appendingPathComponent("secret.txt")
+        try "secret".write(to: outsideFile, atomically: true, encoding: .utf8)
+
+        // Make sure the snapshot directory exists so only the filename is suspect.
+        let snapshotDirectory = cache.snapshotsDirectory(repo: repoID, kind: .model)
+            .appendingPathComponent(commitHash)
+        try FileManager.default.createDirectory(at: snapshotDirectory, withIntermediateDirectories: true)
+
+        // snapshots/<commit>/../../../../secret.txt resolves to the file outside the cache.
+        let cachedPath = cache.cachedFilePath(
+            repo: repoID,
+            kind: .model,
+            revision: commitHash,
+            filename: "../../../../secret.txt"
+        )
+
+        #expect(cachedPath == nil)
+    }
+
+    @Test("Cached file path rejects revision with path traversal")
+    func cachedFilePathRejectsRevisionPathTraversal() throws {
+        let cacheDirectory = tempDirectory.appendingPathComponent("cache", isDirectory: true)
+        let cache = HubCache(cacheDirectory: cacheDirectory)
+        let repoID: Repo.ID = "user/repo"
+        let commitHash = "abc123def456789012345678901234567890abcd"
+
+        // A legitimately cached snapshot file.
+        let snapshotDirectory = cache.snapshotsDirectory(repo: repoID, kind: .model)
+            .appendingPathComponent(commitHash)
+        try FileManager.default.createDirectory(at: snapshotDirectory, withIntermediateDirectories: true)
+        try "content".write(
+            to: snapshotDirectory.appendingPathComponent("config.json"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        // The refs directory must exist for `..` components to resolve through it.
+        try FileManager.default.createDirectory(
+            at: cache.refsDirectory(repo: repoID, kind: .model),
+            withIntermediateDirectories: true
+        )
+
+        // A "ref" file outside the cache directory that points at that commit.
+        let outsideRef = tempDirectory.appendingPathComponent("evil-ref")
+        try commitHash.write(to: outsideRef, atomically: true, encoding: .utf8)
+
+        // refs/../../../evil-ref resolves to the file outside the cache.
+        let cachedPath = cache.cachedFilePath(
+            repo: repoID,
+            kind: .model,
+            revision: "../../../evil-ref",
+            filename: "config.json"
+        )
+
+        #expect(cachedPath == nil)
+    }
 }
