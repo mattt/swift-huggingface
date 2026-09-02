@@ -36,6 +36,14 @@ jobs:
             xcode: "26.0"
             macos: "26"
             traits: "Xet"
+          - swift: "6.3"
+            xcode: "26.6"
+            macos: "26"
+            traits: ""
+          - swift: "6.3"
+            xcode: "26.6"
+            macos: "26"
+            traits: "Xet"
     timeout-minutes: 10
     steps:
       - name: Checkout code
@@ -72,6 +80,10 @@ jobs:
           - swift: "6.2.3"
             traits: ""
           - swift: "6.2.3"
+            traits: "Xet"
+          - swift: "6.3.3"
+            traits: ""
+          - swift: "6.3.3"
             traits: "Xet"
     timeout-minutes: 10
     steps:
